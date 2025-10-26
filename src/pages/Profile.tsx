@@ -2,7 +2,9 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Crown, LogOut, Mail, Calendar, Users, Bell, Download, Settings as SettingsIcon, Package, ChefHat, DollarSign, TrendingUp } from 'lucide-react';
+import { Crown, LogOut, Mail, Calendar, Users, Bell, Download, Settings as SettingsIcon, Package, ChefHat, DollarSign, TrendingUp, Receipt } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { getStoredReceipts } from '@/lib/receiptData';
 import { useAuth } from '@/contexts/AuthContext';
 import { useState, useEffect } from 'react';
 import { AuthModal } from '@/components/AuthModal';
@@ -24,6 +26,7 @@ export default function Profile() {
     devSimulateUsage,
   } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDevTools, setShowDevTools] = useState(
     import.meta.env.DEV || localStorage.getItem('showDevTools') === 'true'
@@ -33,11 +36,16 @@ export default function Profile() {
     recipesGenerated: 0,
     moneySaved: 0,
   });
+  const [pendingReceipts, setPendingReceipts] = useState(0);
 
   useEffect(() => {
     if (tier !== 'anonymous' && user) {
       fetchUserStats();
     }
+    
+    // Check for pending receipts
+    const receipts = getStoredReceipts();
+    setPendingReceipts(receipts.filter(r => r.status === 'ready').length);
   }, [tier, user]);
 
   useEffect(() => {
@@ -464,6 +472,19 @@ export default function Profile() {
         </h3>
 
         <div className="space-y-2">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start" 
+            size="lg"
+            onClick={() => navigate('/receipt-inbox')}
+          >
+            <Receipt className="w-4 h-4 mr-2" />
+            Receipt Inbox
+            {pendingReceipts > 0 && (
+              <Badge className="ml-auto">{pendingReceipts} pending</Badge>
+            )}
+          </Button>
+          
           <Button variant="ghost" className="w-full justify-start" size="lg">
             <Bell className="w-4 h-4 mr-2" />
             Notification Preferences
