@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, ChefHat, Sparkles, Loader2, Info, Crown, AlertCircle } from "lucide-react";
+import { Clock, Users, ChefHat, Sparkles, Loader2, Info, Crown, AlertCircle, Flame, Salad, Pizza, Leaf, ShoppingCart, Check, X } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,7 +11,16 @@ import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { SAMPLE_RECIPES } from "@/lib/sampleRecipes";
 import { ProgressIncentive } from "@/components/ProgressIncentive";
 import { AuthModal } from "@/components/AuthModal";
-import { differenceInDays } from "date-fns";
+import { differenceInDays, getHours } from "date-fns";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { RecipeCard } from "@/components/RecipeCard";
 
 type Recipe = {
   id: string;
@@ -46,6 +55,9 @@ export default function Recipes() {
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [showProgressIncentive, setShowProgressIncentive] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
+  const [showRecipeDetail, setShowRecipeDetail] = useState(false);
+  const [quickFilter, setQuickFilter] = useState<string>("");
   const { toast } = useToast();
   const { tier, recipeCountToday, canGenerateRecipe, incrementRecipeCount, checkProgressMilestone } = useAuth();
 
@@ -232,70 +244,210 @@ export default function Recipes() {
     return Math.round((matchingIngredients.length / totalIngredients) * 100);
   };
 
+  const getTimeBasedGreeting = () => {
+    const hour = getHours(new Date());
+    if (hour < 11) return { icon: "☀️", text: "Breakfast Ideas", filter: "breakfast" };
+    if (hour < 14) return { icon: "🥗", text: "Lunch Options", filter: "lunch" };
+    if (hour < 20) return { icon: "🍽️", text: "Dinner Recipes", filter: "dinner" };
+    return { icon: "🌙", text: "Snack Ideas", filter: "snacks" };
+  };
+
+  const perfectMatches = recipes.filter(r => r.additionalIngredients.length === 0);
+  const almostPerfect = recipes.filter(r => {
+    const total = r.matchingIngredients.length + r.additionalIngredients.length;
+    const percentage = (r.matchingIngredients.length / total) * 100;
+    return percentage >= 80 && r.additionalIngredients.length > 0;
+  });
+
+  const hasExpiringItems = fridgeItems.some(item => {
+    if (!item.expiry_date) return false;
+    const daysUntil = differenceInDays(new Date(item.expiry_date), new Date());
+    return daysUntil <= 2;
+  });
+
+  const expiringItems = fridgeItems.filter(item => {
+    if (!item.expiry_date) return false;
+    const daysUntil = differenceInDays(new Date(item.expiry_date), new Date());
+    return daysUntil <= 2;
+  });
+
+  const handleViewRecipe = (recipe: Recipe) => {
+    setSelectedRecipe(recipe);
+    setShowRecipeDetail(true);
+  };
+
   const recipeLimit = 3;
+  const timeGreeting = getTimeBasedGreeting();
   
   return (
     <div className="space-y-6">
+      {/* Header */}
       <div>
         <h1 className="text-3xl font-bold text-foreground mb-2">Recipe Ideas</h1>
         <p className="text-muted-foreground">Based on what's in your fridge</p>
       </div>
 
-      {/* Recipe Counter for Anonymous Users */}
-      {tier === 'anonymous' && (
-        <Card className="p-4 bg-gradient-to-r from-secondary/10 to-warning/10 shadow-lg">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-foreground">Recipes today:</span>
-            <span className="text-lg font-bold text-foreground">
-              {recipeCountToday}/{recipeLimit}
-            </span>
-          </div>
-        </Card>
-      )}
-
-      {/* Unlimited Badge for Free/Pro Users */}
-      {tier !== 'anonymous' && (
-        <Card className="p-4 bg-gradient-to-r from-success/10 to-primary/10 shadow-lg">
-          <div className="flex items-center justify-center gap-2">
-            <Sparkles className="w-5 h-5 text-success" />
-            <span className="text-sm font-semibold text-foreground">Unlimited recipes ✨</span>
-          </div>
-        </Card>
-      )}
-
       {/* Fridge Items Count */}
       <Card className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10">
         <p className="text-center text-sm text-muted-foreground">
-          You have <strong>{fridgeItems.length}</strong> items in your fridge
+          You have <strong className="text-foreground">{fridgeItems.length}</strong> items in your fridge
         </p>
       </Card>
 
-      {/* AI Suggestion Button */}
-      <Button 
-        onClick={generateRecipes}
-        disabled={generating || fridgeItems.length === 0}
-        className="w-full h-14 bg-gradient-to-r from-secondary to-warning text-white shadow-md hover:shadow-lg transition-all relative"
-      >
-        {tier !== 'pro' && (
-          <Badge className="absolute top-2 right-2 bg-gradient-to-r from-warning to-primary text-white text-xs">
-            <Crown className="w-3 h-3 mr-1" />
-            Pro
-          </Badge>
-        )}
-        {generating ? (
-          <>
-            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-            Generating Recipes...
-          </>
-        ) : (
-          <>
-            <Sparkles className="w-5 h-5 mr-2" />
-            Get AI Recipe Suggestions
-          </>
-        )}
-      </Button>
+      {/* Expiration Urgency Banner */}
+      {hasExpiringItems && (
+        <Card className="p-4 bg-destructive/10 border-destructive/20 border-2 animate-pulse-success">
+          <div className="flex items-start gap-3">
+            <AlertCircle className="w-5 h-5 text-destructive mt-0.5 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-destructive mb-1">
+                ⚠️ Priority: Items expiring soon!
+              </p>
+              <p className="text-xs text-muted-foreground">
+                Use these soon: {expiringItems.map(i => `${i.name} (${differenceInDays(new Date(i.expiry_date!), new Date())}d)`).join(', ')}
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
-      {/* Recipe Cards */}
+      {/* Smart Recipe Generation Section */}
+      <Card className="p-6 bg-gradient-to-br from-success/10 via-primary/10 to-secondary/10 shadow-xl border-2 border-success/20">
+        <div className="text-center space-y-4">
+          <div>
+            <h2 className="text-2xl font-bold text-foreground mb-2">🍳 Ready to Cook?</h2>
+            <p className="text-sm text-muted-foreground">
+              {fridgeItems.length > 0 
+                ? `We'll find recipes using your: ${fridgeItems.slice(0, 5).map(i => i.name).join(', ')}${fridgeItems.length > 5 ? '...' : ''}`
+                : "Add items to your fridge to get personalized recipe suggestions"
+              }
+            </p>
+          </div>
+
+          <Button 
+            onClick={generateRecipes}
+            disabled={generating || fridgeItems.length === 0}
+            className="w-full h-16 bg-gradient-to-r from-success to-primary text-white shadow-lg hover:shadow-xl transition-all text-lg font-semibold"
+          >
+            {generating ? (
+              <>
+                <Loader2 className="w-6 h-6 mr-2 animate-spin" />
+                Analyzing your fridge...
+              </>
+            ) : (
+              <>
+                <ChefHat className="w-6 h-6 mr-2" />
+                Generate Recipes from My Fridge
+              </>
+            )}
+          </Button>
+
+          {/* Tier Badge */}
+          {tier === 'anonymous' ? (
+            <div className="text-xs text-muted-foreground">
+              {recipeCountToday}/{recipeLimit} recipes generated today
+            </div>
+          ) : (
+            <div className="flex items-center justify-center gap-2">
+              <Sparkles className="w-4 h-4 text-success" />
+              <span className="text-xs font-semibold text-success">Unlimited recipes ✨</span>
+            </div>
+          )}
+
+          {/* Quick Filters */}
+          <div className="pt-4 border-t border-border/50">
+            <p className="text-xs text-muted-foreground mb-3">Or browse by:</p>
+            <div className="grid grid-cols-2 gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setQuickFilter("quick")}
+                className="text-xs hover:bg-primary/10"
+              >
+                <Flame className="w-4 h-4 mr-1" />
+                Quick Meals
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setQuickFilter("healthy")}
+                className="text-xs hover:bg-success/10"
+              >
+                <Salad className="w-4 h-4 mr-1" />
+                Healthy
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setQuickFilter("comfort")}
+                className="text-xs hover:bg-warning/10"
+              >
+                <Pizza className="w-4 h-4 mr-1" />
+                Comfort Food
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setQuickFilter("vegetarian")}
+                className="text-xs hover:bg-secondary/10"
+              >
+                <Leaf className="w-4 h-4 mr-1" />
+                Vegetarian
+              </Button>
+            </div>
+          </div>
+        </div>
+      </Card>
+
+      {/* Generated Recipes Section */}
+      {recipes.length > 0 && (
+        <div className="space-y-6">
+          {/* Perfect Matches */}
+          {perfectMatches.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <ChefHat className="w-5 h-5 text-success" />
+                <h3 className="text-lg font-bold text-foreground">Perfect Matches - You have everything!</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                {perfectMatches.map((recipe) => (
+                  <RecipeCard
+                    key={recipe.id}
+                    recipe={recipe}
+                    fridgeItems={fridgeItems}
+                    onViewRecipe={handleViewRecipe}
+                    onCookRecipe={handleCookRecipe}
+                    isPerfectMatch
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Almost Perfect */}
+          {almostPerfect.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <Sparkles className="w-5 h-5 text-primary" />
+                <h3 className="text-lg font-bold text-foreground">Almost Perfect - Just need 1-2 items</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                {almostPerfect.map((recipe) => (
+                  <RecipeCard
+                    key={recipe.id}
+                    recipe={recipe}
+                    fridgeItems={fridgeItems}
+                    onViewRecipe={handleViewRecipe}
+                    onCookRecipe={handleCookRecipe}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Popular Recipes */}
       {loading ? (
         <div className="space-y-4">
           {[1, 2, 3].map((i) => (
@@ -306,164 +458,167 @@ export default function Recipes() {
             </Card>
           ))}
         </div>
+      ) : fridgeItems.length === 0 ? (
+        <Card className="p-8 text-center space-y-4">
+          <div className="text-6xl mb-4">🍽️</div>
+          <h3 className="text-xl font-bold text-foreground">Your fridge is empty!</h3>
+          <p className="text-sm text-muted-foreground">
+            Add items to your fridge first, then we'll suggest recipes you can make.
+          </p>
+          <Button onClick={() => window.location.href = '/add'} className="mt-4">
+            Add Items to Fridge
+          </Button>
+        </Card>
       ) : recipes.length === 0 ? (
         <div className="space-y-4">
           {/* Info Card */}
-          <Card className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10">
-            <div className="flex items-start gap-3">
-              <Info className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-foreground mb-1">
-                  Popular Recipes Preview
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  Add ingredients to see personalized matches based on what you have in your fridge
-                </p>
-              </div>
-            </div>
-          </Card>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-bold text-foreground">
+              {timeGreeting.icon} {timeGreeting.text}
+            </h3>
+          </div>
 
           {/* Sample Recipes */}
           <div className="grid grid-cols-1 gap-4">
-            {SAMPLE_RECIPES.map((recipe) => (
-              <Card key={recipe.id} className="overflow-hidden shadow-lg hover:shadow-xl transition-all">
-                <div className="aspect-video w-full overflow-hidden">
-                  <img 
-                    src={recipe.image} 
-                    alt={recipe.name}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-                <div className="p-4">
-                  <h3 className="text-lg font-bold text-foreground mb-2">{recipe.name}</h3>
-                  <p className="text-sm text-muted-foreground mb-3">{recipe.description}</p>
-                  
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      <span>{recipe.cookTime} min</span>
+            {SAMPLE_RECIPES.slice(0, 6).map((recipe) => {
+              // Calculate match with fridge items
+              const matchingCount = recipe.ingredients.filter(ing => 
+                fridgeItems.some(item => 
+                  item.name.toLowerCase().includes(ing.toLowerCase()) ||
+                  ing.toLowerCase().includes(item.name.toLowerCase())
+                )
+              ).length;
+              const matchPercentage = Math.round((matchingCount / recipe.ingredients.length) * 100);
+
+              return (
+                <Card key={recipe.id} className="overflow-hidden shadow-lg hover:shadow-xl transition-all">
+                  <div className="aspect-video w-full overflow-hidden">
+                    <img 
+                      src={recipe.image} 
+                      alt={recipe.name}
+                      className="w-full h-full object-cover"
+                    />
+                  </div>
+                  <div className="p-4 space-y-3">
+                    <div>
+                      <h3 className="text-lg font-bold text-foreground mb-1">{recipe.name}</h3>
+                      <p className="text-sm text-muted-foreground">{recipe.description}</p>
                     </div>
-                    <Badge variant="secondary" className="text-xs">
-                      {recipe.difficulty}
-                    </Badge>
-                    <div className="flex items-center gap-1">
-                      <ChefHat className="w-4 h-4" />
-                      <span>{recipe.ingredients.length} ingredients</span>
+
+                    {/* Match Indicator */}
+                    <div>
+                      <div className="flex items-center justify-between text-xs mb-1">
+                        <span className="text-muted-foreground font-semibold">
+                          You have {matchingCount}/{recipe.ingredients.length} ingredients
+                        </span>
+                        <span className="font-semibold text-primary">{matchPercentage}%</span>
+                      </div>
+                      <div className="w-full bg-muted rounded-full h-1.5">
+                        <div 
+                          className="bg-gradient-to-r from-primary to-success h-1.5 rounded-full transition-all"
+                          style={{ width: `${matchPercentage}%` }}
+                        />
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1">
+                        <Clock className="w-3 h-3" />
+                        <span>{recipe.cookTime} min</span>
+                      </div>
+                      <Badge variant="secondary" className="text-xs">
+                        {recipe.difficulty}
+                      </Badge>
+                      <div className="flex items-center gap-1">
+                        <Users className="w-3 h-3" />
+                        <span>{recipe.servings} servings</span>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         </div>
-      ) : (
-        <div className="space-y-4">
-          {recipes.map((recipe) => {
-            const totalIngredients = recipe.matchingIngredients.length + recipe.additionalIngredients.length;
-            const matchPercentage = getMatchPercentage(recipe.matchingIngredients, recipe.additionalIngredients);
-            const isUrgent = recipe.expiringItems && recipe.expiringItems.length > 0;
-            
-            return (
-              <Card key={recipe.id} className={`p-5 shadow-lg hover:shadow-xl transition-all ${isUrgent ? 'border-2 border-destructive' : ''}`}>
-                {/* Urgent Badge */}
-                {isUrgent && (
-                  <div className="mb-3 p-2 bg-destructive/10 rounded-lg border border-destructive/20">
-                    <div className="flex items-center gap-2 mb-1">
-                      <AlertCircle className="w-4 h-4 text-destructive" />
-                      <span className="text-sm font-semibold text-destructive">URGENT - Use expiring items!</span>
-                    </div>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {recipe.expiringItems!.map((item, idx) => (
-                        <Badge key={idx} variant="destructive" className="text-xs">
-                          {item.name} (expires {item.daysUntilExpiry === 0 ? 'today' : item.daysUntilExpiry === 1 ? 'tomorrow' : `in ${item.daysUntilExpiry} days`})
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
+      ) : null}
 
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-foreground mb-1">{recipe.name}</h3>
-                    <p className="text-sm text-muted-foreground">{recipe.description}</p>
-                  </div>
-                  <ChefHat className="w-8 h-8 text-primary ml-2" />
-                </div>
-
-                {/* Recipe Stats */}
-                <div className="flex items-center gap-4 mb-3 text-sm text-muted-foreground">
+      {/* Recipe Detail Dialog */}
+      {selectedRecipe && (
+        <Dialog open={showRecipeDetail} onOpenChange={setShowRecipeDetail}>
+          <DialogContent className="max-w-2xl max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold">{selectedRecipe.name}</DialogTitle>
+              <DialogDescription className="text-sm">
+                You have {selectedRecipe.matchingIngredients.length}/{selectedRecipe.matchingIngredients.length + selectedRecipe.additionalIngredients.length} ingredients
+              </DialogDescription>
+            </DialogHeader>
+            <ScrollArea className="max-h-[70vh] pr-4">
+              <div className="space-y-6">
+                {/* Recipe Info */}
+                <div className="flex items-center gap-4 text-sm text-muted-foreground">
                   <div className="flex items-center gap-1">
                     <Clock className="w-4 h-4" />
-                    <span>{recipe.cookTime} min</span>
+                    <span>{selectedRecipe.cookTime} min</span>
                   </div>
                   <div className="flex items-center gap-1">
                     <Users className="w-4 h-4" />
-                    <span>{recipe.servings} servings</span>
+                    <span>{selectedRecipe.servings} servings</span>
                   </div>
-                  <Badge variant="secondary" className="text-xs">
-                    {recipe.difficulty}
-                  </Badge>
+                  <Badge variant="secondary">{selectedRecipe.difficulty}</Badge>
                 </div>
 
-                {/* Ingredient Match */}
-                <div className="mb-4">
-                  <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-muted-foreground font-semibold">
-                      You have {recipe.matchingIngredients.length}/{totalIngredients} ingredients
-                    </span>
-                    <span className="font-semibold text-primary">{matchPercentage}%</span>
-                  </div>
-                  <div className="w-full bg-muted rounded-full h-2">
-                    <div 
-                      className="bg-gradient-to-r from-primary to-success h-2 rounded-full transition-all"
-                      style={{ width: `${matchPercentage}%` }}
-                    />
-                  </div>
-                  <div className="mt-2 space-y-1">
-                    <p className="text-xs text-muted-foreground">
-                      <strong>✓ You have:</strong> {recipe.matchingIngredients.join(', ')}
-                    </p>
-                    {recipe.additionalIngredients.length > 0 && (
-                      <p className="text-xs text-muted-foreground">
-                        <strong>🛒 You'll need:</strong> {recipe.additionalIngredients.join(', ')}
-                      </p>
-                    )}
-                  </div>
-                </div>
-
-                {/* Instructions Preview */}
-                <div className="mb-4 p-3 bg-muted/50 rounded-lg">
-                  <p className="text-xs font-semibold text-foreground mb-2">Quick Steps:</p>
-                  <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
-                    {recipe.instructions.slice(0, 3).map((step, idx) => (
-                      <li key={idx}>{step}</li>
+                {/* Ingredients */}
+                <div>
+                  <h3 className="text-lg font-bold mb-3">Ingredients</h3>
+                  <div className="space-y-2">
+                    {selectedRecipe.matchingIngredients.map((ing, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-sm">
+                        <Check className="w-4 h-4 text-success" />
+                        <span className="text-foreground">{ing} <span className="text-muted-foreground">(You have this)</span></span>
+                      </div>
                     ))}
-                    {recipe.instructions.length > 3 && (
-                      <li className="text-primary">+ {recipe.instructions.length - 3} more steps</li>
-                    )}
+                    {selectedRecipe.additionalIngredients.map((ing, idx) => (
+                      <div key={idx} className="flex items-center gap-2 text-sm">
+                        <X className="w-4 h-4 text-destructive" />
+                        <span className="text-foreground">{ing} <span className="text-muted-foreground">(You need this)</span></span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Instructions */}
+                <div>
+                  <h3 className="text-lg font-bold mb-3">Instructions</h3>
+                  <ol className="space-y-3 list-decimal list-inside">
+                    {selectedRecipe.instructions.map((step, idx) => (
+                      <li key={idx} className="text-sm text-muted-foreground">{step}</li>
+                    ))}
                   </ol>
                 </div>
 
                 {/* Action Buttons */}
-                <div className="flex gap-2">
+                <div className="flex gap-2 pt-4 border-t">
                   <Button 
-                    onClick={() => handleCookRecipe(recipe)}
-                    className="flex-1 bg-success text-white shadow-md hover:shadow-lg transition-all hover:bg-success/90"
+                    onClick={() => {
+                      handleCookRecipe(selectedRecipe);
+                      setShowRecipeDetail(false);
+                    }}
+                    className="flex-1 bg-success text-white hover:bg-success/90"
                   >
                     <ChefHat className="w-4 h-4 mr-2" />
-                    Cook This
+                    Start Cooking
                   </Button>
-                  <Button 
-                    variant="outline"
-                    className="flex-1 shadow-md hover:shadow-lg transition-all"
-                  >
-                    View Full Recipe
-                  </Button>
+                  {selectedRecipe.additionalIngredients.length > 0 && (
+                    <Button variant="outline" className="flex-1">
+                      <ShoppingCart className="w-4 h-4 mr-2" />
+                      Add Missing to List
+                    </Button>
+                  )}
                 </div>
-              </Card>
-            );
-          })}
-        </div>
+              </div>
+            </ScrollArea>
+          </DialogContent>
+        </Dialog>
       )}
       
       {/* Upgrade Prompt */}
