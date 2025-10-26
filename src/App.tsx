@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { AuthProvider } from "./contexts/AuthContext";
 import Home from "./pages/Home";
+import Landing from "./pages/Landing";
 import Inventory from "./pages/Inventory";
 import AddItem from "./pages/AddItem";
 import Recipes from "./pages/Recipes";
@@ -30,6 +31,7 @@ const App = () => {
             <Layout>
               <Routes>
                 <Route path="/" element={<Home />} />
+                <Route path="/landing" element={<Landing />} />
                 <Route path="/inventory" element={<Inventory />} />
                 <Route path="/add" element={<AddItem />} />
                 <Route path="/recipes" element={<Recipes />} />
