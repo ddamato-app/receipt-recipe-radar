@@ -258,6 +258,11 @@ export default function Recipes() {
     const percentage = (r.matchingIngredients.length / total) * 100;
     return percentage >= 80 && r.additionalIngredients.length > 0;
   });
+  const otherRecipes = recipes.filter(r => {
+    const total = r.matchingIngredients.length + r.additionalIngredients.length;
+    const percentage = (r.matchingIngredients.length / total) * 100;
+    return r.additionalIngredients.length > 0 && percentage < 80;
+  });
 
   const hasExpiringItems = fridgeItems.some(item => {
     if (!item.expiry_date) return false;
@@ -433,6 +438,27 @@ export default function Recipes() {
               </div>
               <div className="grid grid-cols-1 gap-4">
                 {almostPerfect.map((recipe) => (
+                  <RecipeCard
+                    key={recipe.id}
+                    recipe={recipe}
+                    fridgeItems={fridgeItems}
+                    onViewRecipe={handleViewRecipe}
+                    onCookRecipe={handleCookRecipe}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Other Recipes */}
+          {otherRecipes.length > 0 && (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2">
+                <ChefHat className="w-5 h-5 text-muted-foreground" />
+                <h3 className="text-lg font-bold text-foreground">More Recipe Ideas</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-4">
+                {otherRecipes.map((recipe) => (
                   <RecipeCard
                     key={recipe.id}
                     recipe={recipe}
