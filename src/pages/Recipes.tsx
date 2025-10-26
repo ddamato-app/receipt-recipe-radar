@@ -58,6 +58,8 @@ export default function Recipes() {
   const [selectedRecipe, setSelectedRecipe] = useState<Recipe | null>(null);
   const [showRecipeDetail, setShowRecipeDetail] = useState(false);
   const [quickFilter, setQuickFilter] = useState<string>("");
+  const [shownRecipeIds, setShownRecipeIds] = useState<Set<string>>(new Set());
+  const [allRecipesExhausted, setAllRecipesExhausted] = useState(false);
   const { toast } = useToast();
   const { tier, recipeCountToday, canGenerateRecipe, incrementRecipeCount, checkProgressMilestone } = useAuth();
 
@@ -65,12 +67,21 @@ export default function Recipes() {
     fetchFridgeItems();
   }, []);
 
-  // Auto-generate recipes when fridge items are loaded
+  // Auto-generate recipes when fridge items are loaded (only first time)
   useEffect(() => {
-    if (fridgeItems.length > 0 && recipes.length === 0 && !loading && !generating) {
+    if (fridgeItems.length > 0 && recipes.length === 0 && shownRecipeIds.size === 0 && !loading && !generating) {
       generateRecipes();
     }
   }, [fridgeItems]);
+
+  // Reset when fridge items change significantly
+  useEffect(() => {
+    if (fridgeItems.length === 0) {
+      setShownRecipeIds(new Set());
+      setAllRecipesExhausted(false);
+      setRecipes([]);
+    }
+  }, [fridgeItems.length]);
 
   const fetchFridgeItems = async () => {
     setLoading(true);
@@ -108,19 +119,28 @@ export default function Recipes() {
     try {
       // Use local matching algorithm
       const { matchRecipes } = await import("@/lib/recipeMatching");
-      const matchedRecipes = matchRecipes(fridgeItems, category);
+      const allMatchedRecipes = matchRecipes(fridgeItems, category, 30);
       
-      if (matchedRecipes.length === 0) {
-        toast({
-          title: "No matches found",
-          description: "Try adding more ingredients to your fridge or try a different category.",
-        });
+      // Filter out already shown recipes
+      const newRecipes = allMatchedRecipes.filter(recipe => !shownRecipeIds.has(recipe.id));
+      
+      if (newRecipes.length === 0) {
+        // No more new recipes available
+        setAllRecipesExhausted(true);
         setRecipes([]);
+        toast({
+          title: "🎉 All recipes explored!",
+          description: "You've seen all possible recipe combinations with your current fridge items. Add more ingredients or reset to see recipes again!",
+          duration: 5000,
+        });
         return;
       }
       
+      // Take next batch of recipes (up to 8)
+      const nextBatch = newRecipes.slice(0, 8);
+      
       // Convert to Recipe type
-      const convertedRecipes: Recipe[] = matchedRecipes.map((recipe) => ({
+      const convertedRecipes: Recipe[] = nextBatch.map((recipe) => ({
         id: recipe.id,
         name: recipe.name,
         description: recipe.description,
@@ -134,11 +154,20 @@ export default function Recipes() {
         expiringItems: recipe.expiringItemsUsed.length > 0 ? recipe.expiringItemsUsed : undefined,
       }));
       
-      setRecipes(convertedRecipes);
+      // Add these recipe IDs to the shown set
+      const newShownIds = new Set(shownRecipeIds);
+      nextBatch.forEach(recipe => newShownIds.add(recipe.id));
+      setShownRecipeIds(newShownIds);
       
+      setRecipes(convertedRecipes);
+      setAllRecipesExhausted(false);
+      
+      const remainingCount = newRecipes.length - nextBatch.length;
       toast({
-        title: "Recipes matched!",
-        description: `Found ${convertedRecipes.length} recipes based on your fridge contents.`,
+        title: "New recipes found!",
+        description: remainingCount > 0 
+          ? `Showing ${convertedRecipes.length} new recipes. ${remainingCount} more available!`
+          : `Showing ${convertedRecipes.length} recipes. This is your last batch!`,
       });
     } catch (error: any) {
       console.error('Error generating recipes:', error);
@@ -150,6 +179,16 @@ export default function Recipes() {
     } finally {
       setGenerating(false);
     }
+  };
+
+  const resetRecipeGeneration = () => {
+    setShownRecipeIds(new Set());
+    setAllRecipesExhausted(false);
+    setRecipes([]);
+    toast({
+      title: "Reset complete",
+      description: "Ready to generate recipes again!",
+    });
   };
 
   const calculateRecipeUrgency = (recipe: Recipe): Recipe => {
@@ -328,23 +367,75 @@ export default function Recipes() {
             </p>
           </div>
 
-          <Button 
-            onClick={() => generateRecipes()}
-            disabled={generating || fridgeItems.length === 0}
-            className="w-full h-16 bg-gradient-to-r from-success to-primary text-white shadow-lg hover:shadow-xl transition-all text-lg font-semibold"
-          >
-            {generating ? (
-              <>
-                <Loader2 className="w-6 h-6 mr-2 animate-spin" />
-                Analyzing your fridge...
-              </>
-            ) : (
-              <>
-                <ChefHat className="w-6 h-6 mr-2" />
-                Generate Recipes from My Fridge
-              </>
-            )}
-          </Button>
+          {/* All Recipes Exhausted Message */}
+          {allRecipesExhausted && (
+            <div className="p-4 bg-primary/10 rounded-lg border border-primary/20">
+              <div className="text-center space-y-3">
+                <div className="text-4xl">🎉</div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground mb-1">
+                    No More Recipe Options!
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    You've explored all possible recipes with your current fridge items.
+                  </p>
+                </div>
+                <div className="flex gap-2 justify-center">
+                  <Button
+                    onClick={resetRecipeGeneration}
+                    variant="outline"
+                    className="shadow-md"
+                  >
+                    <Sparkles className="w-4 h-4 mr-2" />
+                    Reset & Start Over
+                  </Button>
+                  <Button
+                    onClick={() => window.location.href = '/add'}
+                    className="bg-success text-white shadow-md"
+                  >
+                    <ShoppingCart className="w-4 h-4 mr-2" />
+                    Add More Items
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Recipe Generation Button */}
+          {!allRecipesExhausted && (
+            <Button 
+              onClick={() => generateRecipes()}
+              disabled={generating || fridgeItems.length === 0}
+              className="w-full h-16 bg-gradient-to-r from-success to-primary text-white shadow-lg hover:shadow-xl transition-all text-lg font-semibold"
+            >
+              {generating ? (
+                <>
+                  <Loader2 className="w-6 h-6 mr-2 animate-spin" />
+                  Analyzing your fridge...
+                </>
+              ) : (
+                <>
+                  <ChefHat className="w-6 h-6 mr-2" />
+                  {shownRecipeIds.size === 0 
+                    ? "Generate Recipes from My Fridge" 
+                    : "Show Me More Recipes"}
+                </>
+              )}
+            </Button>
+          )}
+
+          {/* Reset Button (when recipes have been shown) */}
+          {!allRecipesExhausted && shownRecipeIds.size > 0 && recipes.length > 0 && (
+            <Button
+              onClick={resetRecipeGeneration}
+              variant="outline"
+              size="sm"
+              className="w-full text-xs"
+            >
+              <Sparkles className="w-4 h-4 mr-2" />
+              Reset & Start Over
+            </Button>
+          )}
 
           {/* Tier Badge */}
           {tier === 'anonymous' ? (
@@ -359,51 +450,69 @@ export default function Recipes() {
           )}
 
           {/* Quick Filters */}
-          <div className="pt-4 border-t border-border/50">
-            <p className="text-xs text-muted-foreground mb-3">Or browse by:</p>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => generateRecipes("quick")}
-                disabled={generating || fridgeItems.length === 0}
-                className="text-xs hover:bg-primary/10"
-              >
-                <Flame className="w-4 h-4 mr-1" />
-                Quick Meals
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => generateRecipes("healthy")}
-                disabled={generating || fridgeItems.length === 0}
-                className="text-xs hover:bg-success/10"
-              >
-                <Salad className="w-4 h-4 mr-1" />
-                Healthy
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => generateRecipes("comfort")}
-                disabled={generating || fridgeItems.length === 0}
-                className="text-xs hover:bg-warning/10"
-              >
-                <Pizza className="w-4 h-4 mr-1" />
-                Comfort Food
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => generateRecipes("vegetarian")}
-                disabled={generating || fridgeItems.length === 0}
-                className="text-xs hover:bg-secondary/10"
-              >
-                <Leaf className="w-4 h-4 mr-1" />
-                Vegetarian
-              </Button>
+          {!allRecipesExhausted && (
+            <div className="pt-4 border-t border-border/50">
+              <p className="text-xs text-muted-foreground mb-3">Or browse by category:</p>
+              <div className="grid grid-cols-2 gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShownRecipeIds(new Set());
+                    setAllRecipesExhausted(false);
+                    generateRecipes("quick");
+                  }}
+                  disabled={generating || fridgeItems.length === 0}
+                  className="text-xs hover:bg-primary/10"
+                >
+                  <Flame className="w-4 h-4 mr-1" />
+                  Quick Meals
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShownRecipeIds(new Set());
+                    setAllRecipesExhausted(false);
+                    generateRecipes("healthy");
+                  }}
+                  disabled={generating || fridgeItems.length === 0}
+                  className="text-xs hover:bg-success/10"
+                >
+                  <Salad className="w-4 h-4 mr-1" />
+                  Healthy
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShownRecipeIds(new Set());
+                    setAllRecipesExhausted(false);
+                    generateRecipes("comfort");
+                  }}
+                  disabled={generating || fridgeItems.length === 0}
+                  className="text-xs hover:bg-warning/10"
+                >
+                  <Pizza className="w-4 h-4 mr-1" />
+                  Comfort Food
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setShownRecipeIds(new Set());
+                    setAllRecipesExhausted(false);
+                    generateRecipes("vegetarian");
+                  }}
+                  disabled={generating || fridgeItems.length === 0}
+                  className="text-xs hover:bg-secondary/10"
+                >
+                  <Leaf className="w-4 h-4 mr-1" />
+                  Vegetarian
+                </Button>
+              </div>
             </div>
-          </div>
+          )}
         </div>
       </Card>
 

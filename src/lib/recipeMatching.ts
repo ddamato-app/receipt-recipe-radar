@@ -218,6 +218,6 @@ export function matchRecipes(
       return difficultyScore(b) - difficultyScore(a);
     });
   
-  // Return top 8 recipes
-  return matchedRecipes.slice(0, 8);
+  // Return all matched recipes (no limit, we'll handle batching in the UI)
+  return matchedRecipes;
 }
