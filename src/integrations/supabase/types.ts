@@ -21,6 +21,7 @@ export type Database = {
           created_at: string | null
           expiry_date: string | null
           id: string
+          is_sample: boolean | null
           name: string
           price: number | null
           quantity: number
@@ -35,6 +36,7 @@ export type Database = {
           created_at?: string | null
           expiry_date?: string | null
           id?: string
+          is_sample?: boolean | null
           name: string
           price?: number | null
           quantity?: number
@@ -49,6 +51,7 @@ export type Database = {
           created_at?: string | null
           expiry_date?: string | null
           id?: string
+          is_sample?: boolean | null
           name?: string
           price?: number | null
           quantity?: number

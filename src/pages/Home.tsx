@@ -1,10 +1,11 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Package, Calendar, TrendingUp, Camera, DollarSign, Info } from "lucide-react";
-import { Link } from "react-router-dom";
+import { AlertCircle, Package, Calendar, TrendingUp, Camera, DollarSign, Info, X, Loader2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 import {
   Tooltip,
   TooltipContent,
@@ -23,6 +24,10 @@ export default function Home() {
   const [moneySaved, setMoneySaved] = useState(0);
   const [moneyWasted, setMoneyWasted] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [hasSampleData, setHasSampleData] = useState(false);
+  const [clearingSampleData, setClearingSampleData] = useState(false);
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
   useEffect(() => {
     fetchData();
@@ -55,53 +60,172 @@ export default function Home() {
 
       if (error) throw error;
 
-      // Calculate stats
-      const activeItems = items?.filter(item => item.status === 'active') || [];
-      const expiringSoonItems = activeItems.filter(item => {
-        const days = getDaysLeft(item.expiry_date);
-        return days > 0 && days <= 5;
-      });
-      const expiredItems = activeItems.filter(item => getDaysLeft(item.expiry_date) <= 0);
-
-      setStats({
-        totalItems: activeItems.length,
-        expiringSoon: expiringSoonItems.length,
-        expired: expiredItems.length,
-      });
-
-      // Set expiring items for display
-      setExpiringItems(
-        expiringSoonItems
-          .slice(0, 3)
-          .map(item => ({
-            name: item.name,
-            daysLeft: getDaysLeft(item.expiry_date),
-            category: item.category,
-          }))
-      );
-
-      // Calculate money saved and wasted for current month
-      const usedItems = items?.filter(
-        item => item.status === 'used' && 
-        item.completed_at && 
-        new Date(item.completed_at) >= startOfMonth
-      ) || [];
-      
-      const wastedItems = items?.filter(
-        item => item.status === 'wasted' && 
-        item.completed_at && 
-        new Date(item.completed_at) >= startOfMonth
-      ) || [];
-
-      const saved = usedItems.reduce((acc, item) => acc + (Number(item.price) || 0), 0);
-      const wasted = wastedItems.reduce((acc, item) => acc + (Number(item.price) || 0), 0);
-
-      setMoneySaved(saved);
-      setMoneyWasted(wasted);
+      // Check if user has any items
+      if (!items || items.length === 0) {
+        // Insert sample data
+        await insertSampleData(user.id);
+        // Refetch after inserting sample data
+        const { data: newItems } = await supabase
+          .from('fridge_items')
+          .select('*')
+          .eq('user_id', user.id);
+        
+        if (newItems) {
+          setHasSampleData(true);
+          processItems(newItems, startOfMonth);
+        }
+      } else {
+        const hasSamples = items.some(item => item.is_sample);
+        setHasSampleData(hasSamples);
+        processItems(items, startOfMonth);
+      }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const insertSampleData = async (userId: string) => {
+    const today = new Date();
+    const sampleItems = [
+      {
+        user_id: userId,
+        name: 'Milk',
+        quantity: 1,
+        unit: 'liter',
+        category: 'Dairy',
+        expiry_date: new Date(today.getTime() + 2 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        price: 3.99,
+        is_sample: true,
+        status: 'active'
+      },
+      {
+        user_id: userId,
+        name: 'Strawberries',
+        quantity: 1,
+        unit: 'pcs',
+        category: 'Fruits',
+        expiry_date: new Date(today.getTime() + 1 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        price: 5.49,
+        is_sample: true,
+        status: 'active'
+      },
+      {
+        user_id: userId,
+        name: 'Chicken Breast',
+        quantity: 500,
+        unit: 'g',
+        category: 'Meat',
+        expiry_date: new Date(today.getTime() + 3 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        price: 8.99,
+        is_sample: true,
+        status: 'active'
+      },
+      {
+        user_id: userId,
+        name: 'Lettuce',
+        quantity: 1,
+        unit: 'pcs',
+        category: 'Vegetables',
+        expiry_date: new Date(today.getTime() + 4 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        price: 2.49,
+        is_sample: true,
+        status: 'active'
+      },
+      {
+        user_id: userId,
+        name: 'Yogurt',
+        quantity: 4,
+        unit: 'pcs',
+        category: 'Dairy',
+        expiry_date: new Date(today.getTime() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+        price: 4.99,
+        is_sample: true,
+        status: 'active'
+      },
+    ];
+
+    await supabase.from('fridge_items').insert(sampleItems);
+  };
+
+  const processItems = (items: any[], startOfMonth: Date) => {
+    // Calculate stats
+    const activeItems = items.filter(item => item.status === 'active');
+    const expiringSoonItems = activeItems.filter(item => {
+      const days = getDaysLeft(item.expiry_date);
+      return days > 0 && days <= 5;
+    });
+    const expiredItems = activeItems.filter(item => getDaysLeft(item.expiry_date) <= 0);
+
+    setStats({
+      totalItems: activeItems.length,
+      expiringSoon: expiringSoonItems.length,
+      expired: expiredItems.length,
+    });
+
+    // Set expiring items for display
+    setExpiringItems(
+      expiringSoonItems
+        .slice(0, 3)
+        .map(item => ({
+          name: item.name,
+          daysLeft: getDaysLeft(item.expiry_date),
+          category: item.category,
+        }))
+    );
+
+    // Calculate money saved and wasted for current month
+    const usedItems = items.filter(
+      item => item.status === 'used' && 
+      item.completed_at && 
+      new Date(item.completed_at) >= startOfMonth
+    );
+    
+    const wastedItems = items.filter(
+      item => item.status === 'wasted' && 
+      item.completed_at && 
+      new Date(item.completed_at) >= startOfMonth
+    );
+
+    const saved = usedItems.reduce((acc, item) => acc + (Number(item.price) || 0), 0);
+    const wasted = wastedItems.reduce((acc, item) => acc + (Number(item.price) || 0), 0);
+
+    setMoneySaved(saved);
+    setMoneyWasted(wasted);
+  };
+
+  const clearSampleData = async () => {
+    setClearingSampleData(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { error } = await supabase
+        .from('fridge_items')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('is_sample', true);
+
+      if (error) throw error;
+
+      setHasSampleData(false);
+      toast({
+        title: "Sample data cleared",
+        description: "Ready to add your own items!",
+      });
+      
+      // Refresh the page data
+      fetchData();
+    } catch (error: any) {
+      console.error('Error clearing sample data:', error);
+      toast({
+        title: "Error",
+        description: "Failed to clear sample data",
+        variant: "destructive",
+      });
+    } finally {
+      setClearingSampleData(false);
     }
   };
 
@@ -111,6 +235,41 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
+      {/* Sample Data Banner */}
+      {hasSampleData && (
+        <Card className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 shadow-lg border-primary/20 animate-fade-in">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <p className="font-semibold text-foreground mb-1">
+                🎉 Sample data loaded - try the app!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Clear it when you're ready to add your own items
+              </p>
+            </div>
+            <Button
+              onClick={clearSampleData}
+              disabled={clearingSampleData}
+              size="sm"
+              variant="outline"
+              className="flex-shrink-0"
+            >
+              {clearingSampleData ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Clearing...
+                </>
+              ) : (
+                <>
+                  <X className="w-4 h-4 mr-2" />
+                  Clear Sample Data
+                </>
+              )}
+            </Button>
+          </div>
+        </Card>
+      )}
+
       {/* Hero Section */}
       <div className="relative rounded-2xl overflow-hidden shadow-lg">
         <img 
