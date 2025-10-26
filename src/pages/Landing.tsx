@@ -8,15 +8,15 @@ const Landing = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center px-6 py-20 bg-gradient-to-br from-primary via-primary/90 to-blue-600">
+      <section className="relative min-h-screen flex items-center justify-center px-6 py-16 md:py-24 bg-gradient-to-br from-primary via-primary/90 to-blue-600">
         <div className="w-[90%] max-w-4xl mx-auto text-center space-y-6 md:space-y-8 animate-fade-in">
           {/* Main Heading */}
-          <h1 className="text-[2rem] md:text-7xl font-bold text-white leading-[1.2]">
+          <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold text-white leading-[1.2]">
             Stop Asking<br />'What's for Dinner?'
           </h1>
           
           {/* Subheading */}
-          <p className="text-lg md:text-2xl text-white/90 max-w-3xl mx-auto leading-[1.6]">
+          <p className="text-base md:text-xl max-w-3xl mx-auto leading-[1.6] text-white/90">
             Your smart fridge companion that saves money, reduces waste, and always knows what to cook.
           </p>
 
