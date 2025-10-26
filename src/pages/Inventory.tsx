@@ -3,8 +3,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Loader2, Trash2, Plus, CheckCircle2, XCircle } from "lucide-react";
-import { useState, useEffect } from "react";
+import { Search, Loader2, Trash2, Plus, CheckCircle2, XCircle, X } from "lucide-react";
+import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +19,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type FridgeItem = {
   id: string;
@@ -39,8 +46,22 @@ export default function Inventory() {
   const [showActionDialog, setShowActionDialog] = useState(false);
   const [selectedItem, setSelectedItem] = useState<FridgeItem | null>(null);
   const [selectedAction, setSelectedAction] = useState<'used' | 'wasted' | null>(null);
+  const [showDetailDialog, setShowDetailDialog] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [swipingItemId, setSwipingItemId] = useState<string | null>(null);
+  const [swipeOffset, setSwipeOffset] = useState(0);
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const isSwiping = useRef(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const hasSeenTutorial = localStorage.getItem('fridge-swipe-tutorial');
+    if (!hasSeenTutorial && !loading && items.length > 0) {
+      setShowTutorial(true);
+    }
+  }, [loading, items]);
 
   useEffect(() => {
     fetchItems();
@@ -68,10 +89,64 @@ export default function Inventory() {
     }
   };
 
+  const closeTutorial = () => {
+    setShowTutorial(false);
+    localStorage.setItem('fridge-swipe-tutorial', 'seen');
+  };
+
+  const handleTouchStart = (e: React.TouchEvent, itemId: string) => {
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+    setSwipingItemId(itemId);
+    isSwiping.current = false;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!swipingItemId) return;
+    
+    const deltaX = e.touches[0].clientX - touchStartX.current;
+    const deltaY = e.touches[0].clientY - touchStartY.current;
+    
+    // Only swipe horizontally if horizontal movement is greater than vertical
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+      isSwiping.current = true;
+      setSwipeOffset(deltaX);
+    }
+  };
+
+  const handleTouchEnd = (item: FridgeItem) => {
+    if (!isSwiping.current || !swipingItemId) {
+      setSwipingItemId(null);
+      setSwipeOffset(0);
+      return;
+    }
+
+    const threshold = 100;
+    if (swipeOffset > threshold) {
+      // Swipe right - mark as used
+      handleMarkItem(item, 'used');
+    } else if (swipeOffset < -threshold) {
+      // Swipe left - mark as wasted
+      handleMarkItem(item, 'wasted');
+    }
+    
+    setSwipingItemId(null);
+    setSwipeOffset(0);
+    isSwiping.current = false;
+  };
+
+  const handleCardClick = (item: FridgeItem) => {
+    if (!isSwiping.current) {
+      setSelectedItem(item);
+      setShowDetailDialog(true);
+    }
+  };
+
   const handleMarkItem = (item: FridgeItem, action: 'used' | 'wasted') => {
     setSelectedItem(item);
     setSelectedAction(action);
     setShowActionDialog(true);
+    setShowDetailDialog(false);
   };
 
   const confirmMarkItem = async () => {
@@ -256,65 +331,129 @@ export default function Inventory() {
                 <p className="text-muted-foreground">No items found in this category</p>
               </Card>
             ) : (
-              filterByCategory(category).map((item) => (
-                <Card key={item.id} className="p-4 shadow-md hover:shadow-lg transition-all">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-foreground text-lg">{item.name}</h3>
-                      <p className="text-sm text-muted-foreground">{item.category}</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {getStatusBadge(item.expiry_date)}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between text-sm mb-3">
-                    <span className="text-muted-foreground">
-                      Quantity: <span className="font-medium text-foreground">{item.quantity} {item.unit}</span>
-                    </span>
-                    <span className="text-muted-foreground">
-                      Expires: <span className="font-medium text-foreground">{item.expiry_date || 'N/A'}</span>
-                    </span>
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      onClick={() => handleMarkItem(item, 'used')}
-                      disabled={actioningId === item.id}
-                      className="flex-1 bg-success hover:bg-success/90 text-white"
+              filterByCategory(category).map((item) => {
+                const isSwipingThis = swipingItemId === item.id;
+                const swipeProgress = Math.min(Math.abs(swipeOffset) / 100, 1);
+                const showUsedIndicator = isSwipingThis && swipeOffset > 20;
+                const showWastedIndicator = isSwipingThis && swipeOffset < -20;
+                
+                return (
+                  <div 
+                    key={item.id} 
+                    className="relative overflow-hidden rounded-lg"
+                  >
+                    {/* Swipe Background Indicators */}
+                    {showUsedIndicator && (
+                      <div 
+                        className="absolute inset-0 bg-success/20 flex items-center justify-start pl-6 rounded-lg"
+                        style={{ opacity: swipeProgress }}
+                      >
+                        <CheckCircle2 className="w-8 h-8 text-success animate-scale-in" />
+                      </div>
+                    )}
+                    {showWastedIndicator && (
+                      <div 
+                        className="absolute inset-0 bg-destructive/20 flex items-center justify-end pr-6 rounded-lg"
+                        style={{ opacity: swipeProgress }}
+                      >
+                        <XCircle className="w-8 h-8 text-destructive animate-scale-in" />
+                      </div>
+                    )}
+
+                    {/* Swipeable Card */}
+                    <Card 
+                      className="p-4 shadow-md hover:shadow-lg transition-all cursor-pointer relative"
+                      style={{
+                        transform: isSwipingThis ? `translateX(${swipeOffset}px)` : 'translateX(0)',
+                        transition: isSwipingThis ? 'none' : 'transform 0.3s ease-out'
+                      }}
+                      onTouchStart={(e) => handleTouchStart(e, item.id)}
+                      onTouchMove={handleTouchMove}
+                      onTouchEnd={() => handleTouchEnd(item)}
+                      onClick={() => handleCardClick(item)}
                     >
-                      <CheckCircle2 className="w-4 h-4 mr-1" />
-                      Used
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => handleMarkItem(item, 'wasted')}
-                      disabled={actioningId === item.id}
-                      className="flex-1"
-                    >
-                      <XCircle className="w-4 h-4 mr-1" />
-                      Wasted
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => handleDelete(item.id)}
-                      disabled={deletingId === item.id}
-                      className="px-2 text-muted-foreground hover:text-destructive"
-                    >
-                      {deletingId === item.id ? (
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                      ) : (
-                        <Trash2 className="w-4 h-4" />
-                      )}
-                    </Button>
+                      <div className="flex items-start justify-between mb-2">
+                        <div className="flex-1">
+                          <h3 className="font-semibold text-foreground text-lg">{item.name}</h3>
+                          <p className="text-sm text-muted-foreground">{item.category}</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {getStatusBadge(item.expiry_date)}
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-muted-foreground">
+                          Quantity: <span className="font-medium text-foreground">{item.quantity} {item.unit}</span>
+                        </span>
+                        <span className="text-muted-foreground">
+                          Expires: <span className="font-medium text-foreground">{item.expiry_date || 'N/A'}</span>
+                        </span>
+                      </div>
+                    </Card>
                   </div>
-                </Card>
-              ))
+                );
+              })
             )}
           </TabsContent>
         ))}
       </Tabs>
+
+      {/* Item Detail Dialog */}
+      <Dialog open={showDetailDialog} onOpenChange={setShowDetailDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{selectedItem?.name}</DialogTitle>
+            <DialogDescription>
+              {selectedItem?.category} • {selectedItem?.quantity} {selectedItem?.unit}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Expires:</span>
+              <span className="font-medium">{selectedItem?.expiry_date || 'N/A'}</span>
+            </div>
+            {selectedItem && getStatusBadge(selectedItem.expiry_date)}
+          </div>
+          <div className="flex gap-2">
+            <Button
+              onClick={() => selectedItem && handleMarkItem(selectedItem, 'used')}
+              disabled={actioningId === selectedItem?.id}
+              className="flex-1 bg-success hover:bg-success/90 text-white"
+            >
+              <CheckCircle2 className="w-4 h-4 mr-2" />
+              Mark as Used
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => selectedItem && handleMarkItem(selectedItem, 'wasted')}
+              disabled={actioningId === selectedItem?.id}
+              className="flex-1"
+            >
+              <XCircle className="w-4 h-4 mr-2" />
+              Mark as Wasted
+            </Button>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => selectedItem && handleDelete(selectedItem.id)}
+            disabled={deletingId === selectedItem?.id}
+            className="w-full text-muted-foreground"
+          >
+            {deletingId === selectedItem?.id ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Deleting...
+              </>
+            ) : (
+              <>
+                <Trash2 className="w-4 h-4 mr-2" />
+                Delete Item
+              </>
+            )}
+          </Button>
+        </DialogContent>
+      </Dialog>
 
       {/* Action Confirmation Dialog */}
       <AlertDialog open={showActionDialog} onOpenChange={setShowActionDialog}>
@@ -340,6 +479,53 @@ export default function Inventory() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Tutorial Overlay */}
+      {showTutorial && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-6 animate-fade-in">
+          <Card className="max-w-sm p-6 shadow-2xl animate-scale-in relative">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={closeTutorial}
+              className="absolute top-2 right-2 h-8 w-8 p-0"
+            >
+              <X className="w-4 h-4" />
+            </Button>
+            <div className="text-center space-y-4">
+              <div className="text-6xl mb-4">👉</div>
+              <h3 className="text-xl font-bold text-foreground">Swipe to Track Items</h3>
+              <div className="space-y-3 text-sm text-muted-foreground">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-success/20 flex items-center justify-center flex-shrink-0">
+                    <CheckCircle2 className="w-5 h-5 text-success" />
+                  </div>
+                  <p className="text-left">
+                    <strong className="text-foreground">Swipe right</strong> when you use items
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-destructive/20 flex items-center justify-center flex-shrink-0">
+                    <XCircle className="w-5 h-5 text-destructive" />
+                  </div>
+                  <p className="text-left">
+                    <strong className="text-foreground">Swipe left</strong> if items go bad
+                  </p>
+                </div>
+                <div className="pt-2 border-t border-border">
+                  <p className="text-xs">Or tap any item to see details and options</p>
+                </div>
+              </div>
+              <Button 
+                onClick={closeTutorial}
+                className="w-full bg-primary"
+              >
+                Got it!
+              </Button>
+            </div>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }
