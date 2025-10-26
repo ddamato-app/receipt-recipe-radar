@@ -61,6 +61,64 @@ const Landing = () => {
         {/* Decorative gradient overlay */}
         <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/5 pointer-events-none" />
       </section>
+
+      {/* The Story Section */}
+      <section className="py-20 md:py-32 px-4 bg-background">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
+            {/* Left: Image Placeholder */}
+            <div className="order-2 md:order-1 animate-fade-in">
+              <div className="aspect-[4/3] rounded-2xl bg-muted flex items-center justify-center overflow-hidden shadow-lg">
+                <div className="text-center p-8 text-muted-foreground">
+                  <p className="text-lg">📸 Image:</p>
+                  <p className="text-sm mt-2">Couple looking at fridge</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Right: Story Text */}
+            <div className="order-1 md:order-2 space-y-6 animate-fade-in">
+              <h2 className="text-4xl md:text-5xl font-bold text-foreground leading-tight">
+                It Started With a Simple Question
+              </h2>
+
+              <div className="space-y-4 text-lg text-foreground/80 leading-relaxed">
+                <p>Every single evening, the same routine.</p>
+
+                <p>I&apos;d open the fridge and ask my wife: &apos;What should we make for dinner tonight?&apos;</p>
+
+                <p>We&apos;d stare at the shelves, seeing the same ingredients. Nothing felt inspiring.</p>
+
+                <p>So we&apos;d stop at the grocery store. Or order online. Quick, easy, convenient.</p>
+
+                <p>Until the delivery arrived.</p>
+
+                <p>&apos;Wait... didn&apos;t we already have milk?&apos;</p>
+
+                <p>That forgotten food would sit there until we&apos;d find it again - expired, wilted, wasted.</p>
+
+                <p className="font-semibold text-foreground">
+                  We weren&apos;t alone. Families waste $1,500 to $3,000 every year on food that never gets eaten.
+                </p>
+
+                <p className="text-xl font-medium text-foreground">
+                  FreshTrack was born from our kitchen frustration. Now that daily &apos;what&apos;s for dinner?&apos; conversation is easy.
+                </p>
+              </div>
+
+              <div className="pt-4">
+                <Button 
+                  size="lg"
+                  onClick={() => navigate("/")}
+                  className="text-lg px-8 py-6 h-auto bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-200 shadow-lg"
+                >
+                  Start Using FreshTrack
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
