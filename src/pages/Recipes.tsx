@@ -65,6 +65,13 @@ export default function Recipes() {
     fetchFridgeItems();
   }, []);
 
+  // Auto-generate recipes when fridge items are loaded
+  useEffect(() => {
+    if (fridgeItems.length > 0 && recipes.length === 0 && !loading && !generating) {
+      generateRecipes();
+    }
+  }, [fridgeItems]);
+
   const fetchFridgeItems = async () => {
     setLoading(true);
     try {
@@ -97,53 +104,42 @@ export default function Recipes() {
       return;
     }
 
-    // Check recipe limit for anonymous users
-    if (!canGenerateRecipe()) {
-      setShowUpgradePrompt(true);
-      return;
-    }
-
     setGenerating(true);
     try {
-      const { data, error } = await supabase.functions.invoke('generate-recipes', {
-        body: { 
-          ingredients: fridgeItems,
-          category: category 
-        }
-      });
-
-      if (error) throw error;
-
-      if (data?.recipes) {
-        const recipesWithIds = data.recipes.map((recipe: any, index: number) => ({
-          ...recipe,
-          id: `${Date.now()}-${index}`,
-        }));
-        
-        // Calculate urgency and sort by expiring items
-        const recipesWithUrgency = recipesWithIds.map((recipe: Recipe) => 
-          calculateRecipeUrgency(recipe)
-        );
-        recipesWithUrgency.sort((a, b) => (b.urgencyScore || 0) - (a.urgencyScore || 0));
-        
-        setRecipes(recipesWithUrgency);
-        
-        // Increment recipe count for anonymous users
-        if (tier === 'anonymous') {
-          incrementRecipeCount();
-          
-          // Check for progress milestone
-          const milestone = checkProgressMilestone();
-          if (milestone === '2-recipes') {
-            setShowProgressIncentive(true);
-          }
-        }
-        
+      // Use local matching algorithm
+      const { matchRecipes } = await import("@/lib/recipeMatching");
+      const matchedRecipes = matchRecipes(fridgeItems, category);
+      
+      if (matchedRecipes.length === 0) {
         toast({
-          title: "Recipes generated!",
-          description: `Found ${recipesWithUrgency.length} delicious recipes for you.`,
+          title: "No matches found",
+          description: "Try adding more ingredients to your fridge or try a different category.",
         });
+        setRecipes([]);
+        return;
       }
+      
+      // Convert to Recipe type
+      const convertedRecipes: Recipe[] = matchedRecipes.map((recipe) => ({
+        id: recipe.id,
+        name: recipe.name,
+        description: recipe.description,
+        cookTime: recipe.cookTime,
+        servings: recipe.servings,
+        difficulty: recipe.difficulty,
+        matchingIngredients: recipe.itemsUserHas,
+        additionalIngredients: recipe.itemsUserNeeds,
+        instructions: recipe.instructions,
+        urgencyScore: recipe.urgencyScore,
+        expiringItems: recipe.expiringItemsUsed.length > 0 ? recipe.expiringItemsUsed : undefined,
+      }));
+      
+      setRecipes(convertedRecipes);
+      
+      toast({
+        title: "Recipes matched!",
+        description: `Found ${convertedRecipes.length} recipes based on your fridge contents.`,
+      });
     } catch (error: any) {
       console.error('Error generating recipes:', error);
       toast({
