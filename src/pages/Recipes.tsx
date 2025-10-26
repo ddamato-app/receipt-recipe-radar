@@ -2,10 +2,15 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, ChefHat, Sparkles, Loader2 } from "lucide-react";
+import { Clock, Users, ChefHat, Sparkles, Loader2, Info } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import chickenStirFryImg from "@/assets/recipe-chicken-stir-fry.jpg";
+import spaghettiCarbonaraImg from "@/assets/recipe-spaghetti-carbonara.jpg";
+import caesarSaladImg from "@/assets/recipe-caesar-salad.jpg";
+import friedRiceImg from "@/assets/recipe-fried-rice.jpg";
+import veggieOmeletteImg from "@/assets/recipe-veggie-omelette.jpg";
 
 type Recipe = {
   id: string;
@@ -27,6 +32,58 @@ type FridgeItem = {
   category: string;
   expiry_date: string | null;
 };
+
+type SampleRecipe = {
+  id: string;
+  name: string;
+  image: string;
+  cookTime: number;
+  difficulty: string;
+  ingredientCount: number;
+};
+
+const sampleRecipes: SampleRecipe[] = [
+  {
+    id: "sample-1",
+    name: "Chicken Stir Fry",
+    image: chickenStirFryImg,
+    cookTime: 15,
+    difficulty: "Easy",
+    ingredientCount: 8,
+  },
+  {
+    id: "sample-2",
+    name: "Spaghetti Carbonara",
+    image: spaghettiCarbonaraImg,
+    cookTime: 20,
+    difficulty: "Medium",
+    ingredientCount: 6,
+  },
+  {
+    id: "sample-3",
+    name: "Caesar Salad",
+    image: caesarSaladImg,
+    cookTime: 10,
+    difficulty: "Easy",
+    ingredientCount: 7,
+  },
+  {
+    id: "sample-4",
+    name: "Fried Rice",
+    image: friedRiceImg,
+    cookTime: 25,
+    difficulty: "Easy",
+    ingredientCount: 9,
+  },
+  {
+    id: "sample-5",
+    name: "Veggie Omelette",
+    image: veggieOmeletteImg,
+    cookTime: 10,
+    difficulty: "Easy",
+    ingredientCount: 5,
+  },
+];
 
 export default function Recipes() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -152,13 +209,54 @@ export default function Recipes() {
           ))}
         </div>
       ) : recipes.length === 0 ? (
-        <Card className="p-8 text-center">
-          <ChefHat className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-          <h3 className="text-xl font-semibold mb-2">No recipes yet</h3>
-          <p className="text-muted-foreground">
-            Click the button above to generate AI-powered recipe suggestions based on your fridge contents!
-          </p>
-        </Card>
+        <div className="space-y-4">
+          {/* Info Card */}
+          <Card className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10">
+            <div className="flex items-start gap-3">
+              <Info className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-foreground mb-1">
+                  Popular Recipes Preview
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Add ingredients to see personalized matches based on what you have in your fridge
+                </p>
+              </div>
+            </div>
+          </Card>
+
+          {/* Sample Recipes */}
+          <div className="grid grid-cols-1 gap-4">
+            {sampleRecipes.map((recipe) => (
+              <Card key={recipe.id} className="overflow-hidden shadow-lg hover:shadow-xl transition-all">
+                <div className="aspect-video w-full overflow-hidden">
+                  <img 
+                    src={recipe.image} 
+                    alt={recipe.name}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+                <div className="p-4">
+                  <h3 className="text-lg font-bold text-foreground mb-3">{recipe.name}</h3>
+                  
+                  <div className="flex items-center gap-4 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-1">
+                      <Clock className="w-4 h-4" />
+                      <span>{recipe.cookTime} min</span>
+                    </div>
+                    <Badge variant="secondary" className="text-xs">
+                      {recipe.difficulty}
+                    </Badge>
+                    <div className="flex items-center gap-1">
+                      <ChefHat className="w-4 h-4" />
+                      <span>{recipe.ingredientCount} ingredients</span>
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
       ) : (
         <div className="space-y-4">
           {recipes.map((recipe) => {
