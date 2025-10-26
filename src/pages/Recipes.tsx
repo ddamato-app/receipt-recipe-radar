@@ -1,7 +1,11 @@
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, ChefHat, Sparkles } from "lucide-react";
+import { Clock, Users, ChefHat, Sparkles, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Skeleton } from "@/components/ui/skeleton";
 
 type Recipe = {
   id: string;
@@ -10,47 +14,97 @@ type Recipe = {
   cookTime: number;
   servings: number;
   difficulty: string;
-  matchingIngredients: number;
-  totalIngredients: number;
+  matchingIngredients: string[];
+  additionalIngredients: string[];
+  instructions: string[];
+};
+
+type FridgeItem = {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  category: string;
+  expiry_date: string | null;
 };
 
 export default function Recipes() {
-  // Mock recipe data - will be replaced with AI-generated recipes based on fridge contents
-  const recipes: Recipe[] = [
-    {
-      id: "1",
-      name: "Creamy Chicken Pasta",
-      description: "A delicious pasta dish with chicken and a creamy sauce",
-      cookTime: 30,
-      servings: 4,
-      difficulty: "Easy",
-      matchingIngredients: 5,
-      totalIngredients: 8,
-    },
-    {
-      id: "2",
-      name: "Fresh Garden Salad",
-      description: "Light and healthy salad with fresh vegetables",
-      cookTime: 15,
-      servings: 2,
-      difficulty: "Easy",
-      matchingIngredients: 6,
-      totalIngredients: 7,
-    },
-    {
-      id: "3",
-      name: "Berry Smoothie Bowl",
-      description: "Refreshing smoothie bowl with strawberries and yogurt",
-      cookTime: 10,
-      servings: 2,
-      difficulty: "Easy",
-      matchingIngredients: 4,
-      totalIngredients: 6,
-    },
-  ];
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
+  const [fridgeItems, setFridgeItems] = useState<FridgeItem[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const { toast } = useToast();
 
-  const getMatchPercentage = (matching: number, total: number) => {
-    return Math.round((matching / total) * 100);
+  useEffect(() => {
+    fetchFridgeItems();
+  }, []);
+
+  const fetchFridgeItems = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('fridge_items')
+        .select('*')
+        .order('expiry_date', { ascending: true });
+
+      if (error) throw error;
+      setFridgeItems(data || []);
+    } catch (error: any) {
+      console.error('Error fetching fridge items:', error);
+      toast({
+        title: "Error",
+        description: "Failed to load fridge items",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const generateRecipes = async () => {
+    if (fridgeItems.length === 0) {
+      toast({
+        title: "No ingredients",
+        description: "Add some items to your fridge first!",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setGenerating(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('generate-recipes', {
+        body: { ingredients: fridgeItems }
+      });
+
+      if (error) throw error;
+
+      if (data?.recipes) {
+        const recipesWithIds = data.recipes.map((recipe: any, index: number) => ({
+          ...recipe,
+          id: `${Date.now()}-${index}`,
+        }));
+        setRecipes(recipesWithIds);
+        toast({
+          title: "Recipes generated!",
+          description: `Found ${recipesWithIds.length} delicious recipes for you.`,
+        });
+      }
+    } catch (error: any) {
+      console.error('Error generating recipes:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to generate recipes",
+        variant: "destructive",
+      });
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const getMatchPercentage = (matchingIngredients: string[]) => {
+    if (fridgeItems.length === 0) return 0;
+    return Math.round((matchingIngredients.length / fridgeItems.length) * 100);
   };
 
   return (
@@ -60,68 +114,126 @@ export default function Recipes() {
         <p className="text-muted-foreground">Based on what's in your fridge</p>
       </div>
 
+      {/* Fridge Items Count */}
+      <Card className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10">
+        <p className="text-center text-sm text-muted-foreground">
+          You have <strong>{fridgeItems.length}</strong> items in your fridge
+        </p>
+      </Card>
+
       {/* AI Suggestion Button */}
       <Button 
+        onClick={generateRecipes}
+        disabled={generating || fridgeItems.length === 0}
         className="w-full h-14 bg-gradient-to-r from-secondary to-warning text-white shadow-md hover:shadow-lg transition-all"
       >
-        <Sparkles className="w-5 h-5 mr-2" />
-        Get AI Recipe Suggestions
+        {generating ? (
+          <>
+            <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+            Generating Recipes...
+          </>
+        ) : (
+          <>
+            <Sparkles className="w-5 h-5 mr-2" />
+            Get AI Recipe Suggestions
+          </>
+        )}
       </Button>
 
       {/* Recipe Cards */}
-      <div className="space-y-4">
-        {recipes.map((recipe) => {
-          const matchPercentage = getMatchPercentage(recipe.matchingIngredients, recipe.totalIngredients);
-          
-          return (
-            <Card key={recipe.id} className="p-5 shadow-lg hover:shadow-xl transition-all">
-              <div className="flex items-start justify-between mb-3">
-                <div className="flex-1">
-                  <h3 className="text-xl font-bold text-foreground mb-1">{recipe.name}</h3>
-                  <p className="text-sm text-muted-foreground">{recipe.description}</p>
-                </div>
-                <ChefHat className="w-8 h-8 text-primary ml-2" />
-              </div>
-
-              {/* Recipe Stats */}
-              <div className="flex items-center gap-4 mb-3 text-sm text-muted-foreground">
-                <div className="flex items-center gap-1">
-                  <Clock className="w-4 h-4" />
-                  <span>{recipe.cookTime} min</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <Users className="w-4 h-4" />
-                  <span>{recipe.servings} servings</span>
-                </div>
-                <Badge variant="secondary" className="text-xs">
-                  {recipe.difficulty}
-                </Badge>
-              </div>
-
-              {/* Ingredient Match */}
-              <div className="mb-4">
-                <div className="flex items-center justify-between text-sm mb-2">
-                  <span className="text-muted-foreground">Ingredient Match</span>
-                  <span className="font-semibold text-primary">{matchPercentage}%</span>
-                </div>
-                <div className="w-full bg-muted rounded-full h-2">
-                  <div 
-                    className="bg-gradient-to-r from-primary to-success h-2 rounded-full transition-all"
-                    style={{ width: `${matchPercentage}%` }}
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  You have {recipe.matchingIngredients} of {recipe.totalIngredients} ingredients
-                </p>
-              </div>
-
-              <Button className="w-full bg-primary text-white shadow-md hover:shadow-lg transition-all">
-                View Recipe
-              </Button>
+      {loading ? (
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <Card key={i} className="p-5">
+              <Skeleton className="h-6 w-3/4 mb-2" />
+              <Skeleton className="h-4 w-full mb-4" />
+              <Skeleton className="h-20 w-full" />
             </Card>
-          );
-        })}
-      </div>
+          ))}
+        </div>
+      ) : recipes.length === 0 ? (
+        <Card className="p-8 text-center">
+          <ChefHat className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+          <h3 className="text-xl font-semibold mb-2">No recipes yet</h3>
+          <p className="text-muted-foreground">
+            Click the button above to generate AI-powered recipe suggestions based on your fridge contents!
+          </p>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {recipes.map((recipe) => {
+            const matchPercentage = getMatchPercentage(recipe.matchingIngredients);
+            
+            return (
+              <Card key={recipe.id} className="p-5 shadow-lg hover:shadow-xl transition-all">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex-1">
+                    <h3 className="text-xl font-bold text-foreground mb-1">{recipe.name}</h3>
+                    <p className="text-sm text-muted-foreground">{recipe.description}</p>
+                  </div>
+                  <ChefHat className="w-8 h-8 text-primary ml-2" />
+                </div>
+
+                {/* Recipe Stats */}
+                <div className="flex items-center gap-4 mb-3 text-sm text-muted-foreground">
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-4 h-4" />
+                    <span>{recipe.cookTime} min</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <Users className="w-4 h-4" />
+                    <span>{recipe.servings} servings</span>
+                  </div>
+                  <Badge variant="secondary" className="text-xs">
+                    {recipe.difficulty}
+                  </Badge>
+                </div>
+
+                {/* Ingredient Match */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="text-muted-foreground">Ingredient Match</span>
+                    <span className="font-semibold text-primary">{matchPercentage}%</span>
+                  </div>
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div 
+                      className="bg-gradient-to-r from-primary to-success h-2 rounded-full transition-all"
+                      style={{ width: `${matchPercentage}%` }}
+                    />
+                  </div>
+                  <div className="mt-2 space-y-1">
+                    <p className="text-xs text-muted-foreground">
+                      <strong>You have:</strong> {recipe.matchingIngredients.join(', ')}
+                    </p>
+                    {recipe.additionalIngredients.length > 0 && (
+                      <p className="text-xs text-muted-foreground">
+                        <strong>You'll need:</strong> {recipe.additionalIngredients.join(', ')}
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* Instructions Preview */}
+                <div className="mb-4 p-3 bg-muted/50 rounded-lg">
+                  <p className="text-xs font-semibold text-foreground mb-2">Quick Steps:</p>
+                  <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                    {recipe.instructions.slice(0, 3).map((step, idx) => (
+                      <li key={idx}>{step}</li>
+                    ))}
+                    {recipe.instructions.length > 3 && (
+                      <li className="text-primary">+ {recipe.instructions.length - 3} more steps</li>
+                    )}
+                  </ol>
+                </div>
+
+                <Button className="w-full bg-primary text-white shadow-md hover:shadow-lg transition-all">
+                  View Full Recipe
+                </Button>
+              </Card>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

@@ -1,9 +1,18 @@
-import { Home, Package, PlusCircle, ChefHat } from "lucide-react";
+import { Home, Package, PlusCircle, ChefHat, LogOut } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
+  const { toast } = useToast();
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast({ title: "Signed out successfully" });
+  };
 
   const navItems = [
     { icon: Home, label: "Home", path: "/" },
@@ -14,7 +23,17 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <main className="container mx-auto px-4 py-6 max-w-2xl">
+      <header className="fixed top-0 left-0 right-0 h-14 bg-card border-b border-border shadow-sm z-10 px-4 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <Package className="w-5 h-5 text-primary" />
+          <h1 className="text-lg font-bold">FreshTrack</h1>
+        </div>
+        <Button variant="ghost" size="sm" onClick={handleLogout}>
+          <LogOut className="w-4 h-4" />
+        </Button>
+      </header>
+      
+      <main className="container mx-auto px-4 py-6 max-w-2xl mt-14">
         {children}
       </main>
 

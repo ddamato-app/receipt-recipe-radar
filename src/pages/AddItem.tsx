@@ -5,8 +5,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Camera, Upload, X, Check, Loader2 } from "lucide-react";
 import { useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/integrations/supabase/client";
 
 type ScannedItem = {
   name: string;
@@ -19,10 +21,12 @@ type ScannedItem = {
 
 export default function AddItem() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isScanning, setIsScanning] = useState(false);
   const [scannedImage, setScannedImage] = useState<string | null>(null);
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     quantity: "",
@@ -105,15 +109,54 @@ export default function AddItem() {
     }
   };
 
-  const handleAddScannedItems = () => {
-    toast({
-      title: "Items Added!",
-      description: `${scannedItems.length} items added to your fridge`,
-    });
-    handleClearScan();
+  const handleAddScannedItems = async () => {
+    setIsSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to add items",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const itemsToInsert = scannedItems.map(item => ({
+        user_id: user.id,
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        category: item.category,
+        expiry_date: item.expiryDate,
+      }));
+
+      const { error } = await supabase
+        .from('fridge_items')
+        .insert(itemsToInsert);
+
+      if (error) throw error;
+
+      toast({
+        title: "Items added!",
+        description: `Successfully added ${scannedItems.length} items to your fridge.`,
+      });
+      
+      handleClearScan();
+      navigate('/inventory');
+    } catch (error: any) {
+      console.error('Error adding items:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add items",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!formData.name || !formData.quantity || !formData.category || !formData.expiryDate) {
@@ -125,18 +168,55 @@ export default function AddItem() {
       return;
     }
 
-    toast({
-      title: "Item Added!",
-      description: `${formData.name} has been added to your fridge`,
-    });
+    setIsSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to add items",
+          variant: "destructive",
+        });
+        return;
+      }
 
-    setFormData({
-      name: "",
-      quantity: "",
-      unit: "pcs",
-      category: "",
-      expiryDate: "",
-    });
+      const { error } = await supabase
+        .from('fridge_items')
+        .insert([{
+          user_id: user.id,
+          name: formData.name,
+          quantity: Number(formData.quantity),
+          unit: formData.unit,
+          category: formData.category,
+          expiry_date: formData.expiryDate,
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Item Added!",
+        description: `${formData.name} has been added to your fridge`,
+      });
+
+      setFormData({
+        name: "",
+        quantity: "",
+        unit: "pcs",
+        category: "",
+        expiryDate: "",
+      });
+      
+      navigate('/inventory');
+    } catch (error: any) {
+      console.error('Error adding item:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add item",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -244,9 +324,20 @@ export default function AddItem() {
 
               <Button 
                 onClick={handleAddScannedItems}
+                disabled={isSaving}
                 className="w-full bg-gradient-to-r from-primary to-success text-white shadow-md"
               >
-                Add All Items to Fridge
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4 mr-2" />
+                    Add All Items to Fridge
+                  </>
+                )}
               </Button>
             </div>
           ) : null}
@@ -336,9 +427,17 @@ export default function AddItem() {
 
           <Button 
             type="submit" 
+            disabled={isSaving}
             className="w-full bg-gradient-to-r from-primary to-success text-white shadow-md hover:shadow-lg transition-all"
           >
-            Add to Fridge
+            {isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Add to Fridge"
+            )}
           </Button>
         </form>
       </Card>
