@@ -287,6 +287,137 @@ const Landing = () => {
           </div>
         </div>
       </section>
+
+      {/* Pricing Section */}
+      <section className="py-20 md:py-32 px-4 bg-muted/30">
+        <div className="max-w-7xl mx-auto space-y-12">
+          {/* Header */}
+          <div className="text-center space-y-4 animate-fade-in">
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground">
+              Start Free, Upgrade When Ready
+            </h2>
+          </div>
+
+          {/* Pricing Cards */}
+          <div className="grid md:grid-cols-3 gap-8 items-center">
+            {/* Card 1 - FREE */}
+            <div className="bg-background rounded-2xl p-8 shadow-lg border border-border animate-fade-in">
+              <div className="text-center space-y-4 mb-6">
+                <h3 className="text-2xl font-bold text-foreground">FREE</h3>
+                <div className="text-4xl font-bold text-foreground">$0<span className="text-lg text-foreground/60">/month</span></div>
+                <p className="text-sm text-foreground/70">Perfect to start</p>
+              </div>
+              <ul className="space-y-3 mb-8 text-foreground/70">
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>15 items max</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>Basic tracking</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>3 recipes/day</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>This device only</span>
+                </li>
+              </ul>
+              <Button 
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate("/")}
+              >
+                Get Started
+              </Button>
+            </div>
+
+            {/* Card 2 - FREE ACCOUNT (Highlighted) */}
+            <div className="bg-background rounded-2xl p-8 shadow-2xl border-2 border-primary relative md:scale-105 animate-fade-in">
+              <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-primary text-primary-foreground px-4 py-1 rounded-full text-sm font-semibold">
+                Most popular!
+              </div>
+              <div className="text-center space-y-4 mb-6 mt-2">
+                <h3 className="text-2xl font-bold text-foreground">FREE ACCOUNT</h3>
+                <div className="text-4xl font-bold text-foreground">$0<span className="text-lg text-foreground/60">/month</span></div>
+              </div>
+              <ul className="space-y-3 mb-8 text-foreground/70">
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>Unlimited items</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>All features</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>Sync devices</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>Family sharing</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>3 month history</span>
+                </li>
+              </ul>
+              <Button 
+                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+                onClick={() => navigate("/")}
+              >
+                Create Account
+              </Button>
+            </div>
+
+            {/* Card 3 - PRO */}
+            <div className="bg-background rounded-2xl p-8 shadow-lg border border-border animate-fade-in">
+              <div className="text-center space-y-4 mb-6">
+                <h3 className="text-2xl font-bold text-foreground">PRO</h3>
+                <div className="text-4xl font-bold text-foreground">$4.99<span className="text-lg text-foreground/60">/month</span></div>
+                <p className="text-sm text-foreground/70">For power users</p>
+              </div>
+              <ul className="space-y-3 mb-8 text-foreground/70">
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>Everything above +</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>Receipt scanning</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>Meal planning</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>Advanced analytics</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-primary">✓</span>
+                  <span>Price tracking</span>
+                </li>
+              </ul>
+              <Button 
+                variant="outline"
+                className="w-full"
+                onClick={() => navigate("/")}
+              >
+                Start Free Trial
+              </Button>
+            </div>
+          </div>
+
+          {/* Bottom Text */}
+          <p className="text-center text-lg text-foreground/80 max-w-2xl mx-auto animate-fade-in">
+            💡 Average family saves $1,500/year. FreshTrack pays for itself.
+          </p>
+        </div>
+      </section>
     </div>
   );
 };
