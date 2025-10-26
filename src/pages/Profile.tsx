@@ -2,7 +2,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Crown, LogOut, Mail, Calendar, Users, Bell, Download, Settings as SettingsIcon, Package, ChefHat, DollarSign, TrendingUp, Receipt } from 'lucide-react';
+import { Crown, LogOut, Mail, Calendar, Users, Bell, Download, Settings as SettingsIcon, Package, ChefHat, DollarSign, TrendingUp, Receipt, Apple } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getStoredReceipts } from '@/lib/receiptData';
 import { useAuth } from '@/contexts/AuthContext';
@@ -472,6 +472,16 @@ export default function Profile() {
         </h3>
 
         <div className="space-y-2">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start" 
+            size="lg"
+            onClick={() => navigate('/health')}
+          >
+            <Apple className="w-4 h-4 mr-2" />
+            Health Score
+          </Button>
+          
           <Button 
             variant="ghost" 
             className="w-full justify-start" 

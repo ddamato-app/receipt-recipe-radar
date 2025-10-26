@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Package, Calendar, TrendingUp, Camera, DollarSign, Info, X, Loader2, Crown } from "lucide-react";
+import { AlertCircle, Package, Calendar, TrendingUp, Camera, DollarSign, Info, X, Loader2, Crown, Apple, ArrowRight } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,6 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { initializeAnonymousSampleData, clearAnonymousSampleData, getAnonymousItems } from "@/lib/sampleData";
+import { calculateConsumptionScore, getScoreColor, getScoreLabel } from "@/lib/healthScore";
 import {
   Tooltip,
   TooltipContent,
@@ -26,6 +27,8 @@ export default function Home() {
   const [expiringItems, setExpiringItems] = useState<Array<{ name: string; daysLeft: number; category: string }>>([]);
   const [moneySaved, setMoneySaved] = useState(0);
   const [moneyWasted, setMoneyWasted] = useState(0);
+  const [healthScore, setHealthScore] = useState(0);
+  const [consumedThisWeek, setConsumedThisWeek] = useState(0);
   const [loading, setLoading] = useState(true);
   const [hasSampleData, setHasSampleData] = useState(false);
   const [showSampleBanner, setShowSampleBanner] = useState(false);
@@ -75,6 +78,9 @@ export default function Home() {
 
       const currentDate = new Date();
       const startOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1);
+      const startOfWeek = new Date(currentDate);
+      startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
+      startOfWeek.setHours(0, 0, 0, 0);
 
       // Fetch all items
       const { data: items, error } = await supabase
@@ -83,6 +89,21 @@ export default function Home() {
         .eq('user_id', user.id);
 
       if (error) throw error;
+
+      // Fetch consumed items this week for health score
+      const { data: consumedItems, error: consumedError } = await supabase
+        .from('fridge_items')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('status', 'used')
+        .gte('completed_at', startOfWeek.toISOString());
+
+      if (consumedError) throw consumedError;
+
+      // Calculate health score based on consumption
+      const score = calculateConsumptionScore(consumedItems || []);
+      setHealthScore(score.totalScore);
+      setConsumedThisWeek(consumedItems?.length || 0);
 
       // Check if user has any items
       if (!items || items.length === 0) {
@@ -420,6 +441,65 @@ export default function Home() {
           <div className="text-xs text-muted-foreground">Fresh</div>
         </Card>
       </div>
+
+      {/* Health Score Widget */}
+      {tier !== 'anonymous' && (
+        <Card 
+          className="p-5 shadow-lg bg-gradient-to-br from-green-500/10 to-primary/10 cursor-pointer hover:shadow-xl transition-all"
+          onClick={() => navigate('/health')}
+        >
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Apple className="w-6 h-6 text-green-600" />
+              <h2 className="text-lg font-bold text-foreground">Your Health Score</h2>
+            </div>
+            <ArrowRight className="w-5 h-5 text-muted-foreground" />
+          </div>
+          
+          <div className="flex items-center gap-4">
+            <div className="relative w-20 h-20 flex-shrink-0">
+              <svg className="transform -rotate-90 w-20 h-20">
+                <circle
+                  cx="40"
+                  cy="40"
+                  r="36"
+                  stroke="currentColor"
+                  strokeWidth="6"
+                  fill="transparent"
+                  className="text-muted"
+                />
+                <circle
+                  cx="40"
+                  cy="40"
+                  r="36"
+                  stroke="currentColor"
+                  strokeWidth="6"
+                  fill="transparent"
+                  strokeDasharray={`${2 * Math.PI * 36}`}
+                  strokeDashoffset={`${2 * Math.PI * 36 * (1 - healthScore / 100)}`}
+                  className={healthScore >= 75 ? 'text-success' : healthScore >= 50 ? 'text-warning' : 'text-destructive'}
+                  strokeLinecap="round"
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-2xl font-bold text-foreground">{healthScore}</span>
+              </div>
+            </div>
+            
+            <div className="flex-1">
+              <Badge className={`mb-2 ${getScoreColor(healthScore)}`}>
+                {getScoreLabel(healthScore)}
+              </Badge>
+              <p className="text-sm text-muted-foreground">
+                Based on {consumedThisWeek} items consumed this week
+              </p>
+              <p className="text-xs text-primary mt-1 font-medium">
+                Tap to see detailed analysis →
+              </p>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Money Saved Card */}
       <Card className="p-5 shadow-lg bg-gradient-to-br from-success/10 to-primary/10">

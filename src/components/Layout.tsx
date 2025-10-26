@@ -1,4 +1,4 @@
-import { Home, Package, PlusCircle, ChefHat, DollarSign, User } from "lucide-react";
+import { Home, Package, PlusCircle, ChefHat, DollarSign, User, Apple } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -15,7 +15,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     { icon: Home, label: "Home", path: "/" },
     { icon: Package, label: "Fridge", path: "/inventory" },
     { icon: PlusCircle, label: "Add", path: "/add" },
-    { icon: ChefHat, label: "Recipes", path: "/recipes" },
+    { icon: Apple, label: "Health", path: "/health" },
     { icon: DollarSign, label: "Stats", path: "/spending" },
   ];
 
