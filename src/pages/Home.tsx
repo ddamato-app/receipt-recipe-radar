@@ -377,8 +377,16 @@ export default function Home() {
         <Link to="/recipes">
           <Button className="w-full h-20 bg-gradient-to-br from-secondary to-warning text-white shadow-md hover:shadow-lg transition-all">
             <div className="flex flex-col items-center gap-2">
-              <Calendar className="w-6 h-6" />
-              <span className="text-sm font-medium">Get Recipes</span>
+              <span className="text-2xl">🍳</span>
+              <span className="text-sm font-medium text-center leading-tight">Find Recipes Using These Items</span>
+            </div>
+          </Button>
+        </Link>
+        <Link to="/spending" className="col-span-2">
+          <Button className="w-full h-20 bg-gradient-to-br from-accent to-primary text-white shadow-md hover:shadow-lg transition-all">
+            <div className="flex flex-col items-center gap-2">
+              <span className="text-2xl">📊</span>
+              <span className="text-sm font-medium">View My Stats</span>
             </div>
           </Button>
         </Link>
