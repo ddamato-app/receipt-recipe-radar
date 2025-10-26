@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Play } from "lucide-react";
+import { Package, ChefHat, DollarSign } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
 const Landing = () => {
@@ -8,95 +8,179 @@ const Landing = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative bg-background py-16 md:py-24 px-6">
-        <div className="w-[90%] max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
+      <section className="bg-background py-12 md:py-20 lg:py-24 px-6">
+        <div className="w-full max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 lg:gap-16 items-center">
             {/* Left: Content */}
-            <div className="space-y-8 animate-fade-in">
+            <div className="space-y-8 order-2 md:order-1">
+              {/* Pre-headline */}
+              <p className="text-sm md:text-base font-medium text-primary uppercase tracking-wide">
+                Your Smart Kitchen Companion
+              </p>
+
               {/* Main Heading */}
               <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-[1.1]">
-                Never Waste Food Again
+                Never Waste Food or Money Again
               </h1>
               
               {/* Subheading */}
-              <p className="text-xl md:text-2xl text-foreground/80 leading-[1.4] font-medium">
-                Track what's in your fridge. Get recipe ideas. Save money.
+              <p className="text-lg md:text-xl text-foreground/70 leading-relaxed">
+                Track what's in your fridge. Get recipe ideas. Save money on groceries.
               </p>
 
               {/* Value Props */}
-              <div className="space-y-6">
+              <div className="space-y-6 pt-4">
                 {/* Prop 1 */}
                 <div className="flex gap-4 items-start">
-                  <div className="text-3xl flex-shrink-0">📦</div>
+                  <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Package className="w-6 h-6 text-primary" />
+                  </div>
                   <div>
                     <h3 className="text-lg font-semibold text-foreground mb-1">
                       Track Your Groceries
                     </h3>
                     <p className="text-base text-foreground/70 leading-relaxed">
-                      Scan receipts or add items manually. Always know what you have.
+                      Scan receipts or add items manually. Always know what you have and when it expires.
                     </p>
                   </div>
                 </div>
 
                 {/* Prop 2 */}
                 <div className="flex gap-4 items-start">
-                  <div className="text-3xl flex-shrink-0">🍳</div>
+                  <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <ChefHat className="w-6 h-6 text-primary" />
+                  </div>
                   <div>
                     <h3 className="text-lg font-semibold text-foreground mb-1">
                       Smart Recipe Suggestions
                     </h3>
                     <p className="text-base text-foreground/70 leading-relaxed">
-                      Get recipes based on what's expiring soon. Use everything before it spoils.
+                      Get recipes using ingredients you already have. Prioritize items expiring soon.
                     </p>
                   </div>
                 </div>
 
                 {/* Prop 3 */}
                 <div className="flex gap-4 items-start">
-                  <div className="text-3xl flex-shrink-0">💰</div>
+                  <div className="flex-shrink-0 w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <DollarSign className="w-6 h-6 text-primary" />
+                  </div>
                   <div>
                     <h3 className="text-lg font-semibold text-foreground mb-1">
                       See Your Savings
                     </h3>
                     <p className="text-base text-foreground/70 leading-relaxed">
-                      Track money saved vs wasted. Most families save $1,500+ per year.
+                      Track money saved vs wasted. Average family saves $1,500+ per year.
                     </p>
                   </div>
                 </div>
               </div>
 
               {/* CTA Buttons */}
-              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+              <div className="flex flex-col sm:flex-row gap-4 pt-6">
                 <Button 
                   size="lg"
                   onClick={() => navigate("/")}
-                  className="text-base md:text-lg px-8 py-6 h-auto bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-200 shadow-lg w-full sm:w-auto"
+                  className="text-base md:text-lg px-8 py-6 h-auto bg-primary text-primary-foreground hover:bg-primary/90 transition-all duration-200 shadow-lg w-full sm:w-auto font-semibold"
                 >
                   Start Free - No Credit Card
                 </Button>
                 <button 
                   onClick={() => navigate("/")}
-                  className="text-base md:text-lg text-primary font-medium hover:text-primary/80 transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
+                  className="text-base md:text-lg text-primary font-semibold hover:text-primary/80 transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
                 >
                   See How It Works →
                 </button>
               </div>
+
+              {/* Trust Signals */}
+              <div className="flex flex-wrap gap-6 text-foreground/60 text-sm pt-4">
+                <span className="flex items-center gap-2">
+                  <span className="text-primary">✓</span> Free forever plan
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="text-primary">✓</span> 1,000+ families saving
+                </span>
+                <span className="flex items-center gap-2">
+                  <span className="text-primary">✓</span> Works on any device
+                </span>
+              </div>
             </div>
 
-            {/* Right: App Screenshot/Mockup */}
-            <div className="animate-fade-in order-first md:order-last">
-              <div className="relative">
-                {/* Phone mockup frame */}
-                <div className="bg-gradient-to-br from-primary/5 to-blue-600/5 rounded-3xl p-8 shadow-2xl">
-                  <div className="bg-background rounded-2xl shadow-xl overflow-hidden border-8 border-foreground/10">
-                    <div className="aspect-[9/16] bg-muted flex flex-col items-center justify-center p-6 text-center">
-                      <div className="space-y-4">
-                        <p className="text-lg font-semibold text-foreground">📱 App Screenshot</p>
-                        <p className="text-sm text-muted-foreground">
-                          FreshTrack Home Screen<br />
-                          Showing fridge inventory<br />
-                          with expiration tracking
-                        </p>
+            {/* Right: App Mockup */}
+            <div className="order-1 md:order-2">
+              <div className="relative max-w-sm mx-auto md:max-w-none">
+                {/* Phone mockup frame with shadow */}
+                <div className="relative bg-gradient-to-br from-primary/5 to-blue-600/5 rounded-3xl p-6 md:p-8">
+                  <div className="bg-background rounded-2xl shadow-2xl overflow-hidden border-[10px] border-foreground/10">
+                    {/* Phone screen content */}
+                    <div className="aspect-[9/19.5] bg-background">
+                      {/* App header */}
+                      <div className="bg-primary text-primary-foreground p-4 text-center">
+                        <h3 className="font-semibold text-lg">My Fridge</h3>
+                      </div>
+                      
+                      {/* App content - Item list */}
+                      <div className="p-4 space-y-3">
+                        {/* Item 1 */}
+                        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="text-2xl">🥛</div>
+                            <div>
+                              <p className="font-medium text-sm">Milk</p>
+                              <p className="text-xs text-foreground/60">Dairy • 1 liter</p>
+                            </div>
+                          </div>
+                          <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-medium">2d left</span>
+                        </div>
+
+                        {/* Item 2 */}
+                        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="text-2xl">🍎</div>
+                            <div>
+                              <p className="font-medium text-sm">Apples</p>
+                              <p className="text-xs text-foreground/60">Fruits • 6 items</p>
+                            </div>
+                          </div>
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">5d left</span>
+                        </div>
+
+                        {/* Item 3 */}
+                        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="text-2xl">🥬</div>
+                            <div>
+                              <p className="font-medium text-sm">Lettuce</p>
+                              <p className="text-xs text-foreground/60">Vegetables • 1 head</p>
+                            </div>
+                          </div>
+                          <span className="text-xs bg-yellow-100 text-yellow-700 px-2 py-1 rounded-full font-medium">4d left</span>
+                        </div>
+
+                        {/* Item 4 */}
+                        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="text-2xl">🧀</div>
+                            <div>
+                              <p className="font-medium text-sm">Cheese</p>
+                              <p className="text-xs text-foreground/60">Dairy • 200g</p>
+                            </div>
+                          </div>
+                          <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-full font-medium">7d left</span>
+                        </div>
+
+                        {/* Item 5 */}
+                        <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                          <div className="flex items-center gap-3">
+                            <div className="text-2xl">🍞</div>
+                            <div>
+                              <p className="font-medium text-sm">Bread</p>
+                              <p className="text-xs text-foreground/60">Grains • 1 loaf</p>
+                            </div>
+                          </div>
+                          <span className="text-xs bg-orange-100 text-orange-700 px-2 py-1 rounded-full font-medium">3d left</span>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -104,28 +188,6 @@ const Landing = () => {
               </div>
             </div>
           </div>
-
-          {/* Trust Signals */}
-          <div className="flex flex-wrap justify-center md:justify-start gap-6 text-foreground/70 text-sm mt-8 animate-fade-in">
-            <span className="flex items-center gap-2">
-              <span className="text-primary text-base">✓</span> Free to start
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="text-primary text-base">✓</span> No credit card needed
-            </span>
-            <span className="flex items-center gap-2">
-              <span className="text-primary text-base">✓</span> Works on any device
-            </span>
-          </div>
-        </div>
-      </section>
-
-      {/* Social Proof Bar */}
-      <section className="bg-muted/30 py-6 px-6">
-        <div className="w-[90%] max-w-7xl mx-auto text-center">
-          <p className="text-foreground/70 text-sm md:text-base">
-            Join 1,000+ families already reducing food waste and saving money
-          </p>
         </div>
       </section>
 
