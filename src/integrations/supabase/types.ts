@@ -17,36 +17,42 @@ export type Database = {
       fridge_items: {
         Row: {
           category: string
+          completed_at: string | null
           created_at: string | null
           expiry_date: string | null
           id: string
           name: string
           price: number | null
           quantity: number
+          status: string | null
           unit: string
           updated_at: string | null
           user_id: string
         }
         Insert: {
           category: string
+          completed_at?: string | null
           created_at?: string | null
           expiry_date?: string | null
           id?: string
           name: string
           price?: number | null
           quantity?: number
+          status?: string | null
           unit?: string
           updated_at?: string | null
           user_id: string
         }
         Update: {
           category?: string
+          completed_at?: string | null
           created_at?: string | null
           expiry_date?: string | null
           id?: string
           name?: string
           price?: number | null
           quantity?: number
+          status?: string | null
           unit?: string
           updated_at?: string | null
           user_id?: string

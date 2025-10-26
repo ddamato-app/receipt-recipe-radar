@@ -3,12 +3,22 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Loader2, Trash2, Plus } from "lucide-react";
+import { Search, Loader2, Trash2, Plus, CheckCircle2, XCircle } from "lucide-react";
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type FridgeItem = {
   id: string;
@@ -25,6 +35,10 @@ export default function Inventory() {
   const [items, setItems] = useState<FridgeItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [actioningId, setActioningId] = useState<string | null>(null);
+  const [showActionDialog, setShowActionDialog] = useState(false);
+  const [selectedItem, setSelectedItem] = useState<FridgeItem | null>(null);
+  const [selectedAction, setSelectedAction] = useState<'used' | 'wasted' | null>(null);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -37,6 +51,7 @@ export default function Inventory() {
       const { data, error } = await supabase
         .from('fridge_items')
         .select('*')
+        .eq('status', 'active')
         .order('expiry_date', { ascending: true });
 
       if (error) throw error;
@@ -50,6 +65,49 @@ export default function Inventory() {
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleMarkItem = (item: FridgeItem, action: 'used' | 'wasted') => {
+    setSelectedItem(item);
+    setSelectedAction(action);
+    setShowActionDialog(true);
+  };
+
+  const confirmMarkItem = async () => {
+    if (!selectedItem || !selectedAction) return;
+
+    setActioningId(selectedItem.id);
+    try {
+      const { error } = await supabase
+        .from('fridge_items')
+        .update({ 
+          status: selectedAction,
+          completed_at: new Date().toISOString()
+        })
+        .eq('id', selectedItem.id);
+
+      if (error) throw error;
+
+      setItems(items.filter(item => item.id !== selectedItem.id));
+      toast({
+        title: selectedAction === 'used' ? "Item marked as used!" : "Item marked as wasted",
+        description: selectedAction === 'used' 
+          ? "Great job reducing waste!" 
+          : "Item removed from inventory",
+      });
+    } catch (error: any) {
+      console.error('Error updating item:', error);
+      toast({
+        title: "Error",
+        description: "Failed to update item",
+        variant: "destructive",
+      });
+    } finally {
+      setActioningId(null);
+      setShowActionDialog(false);
+      setSelectedItem(null);
+      setSelectedAction(null);
     }
   };
 
@@ -207,22 +265,9 @@ export default function Inventory() {
                     </div>
                     <div className="flex items-center gap-2">
                       {getStatusBadge(item.expiry_date)}
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() => handleDelete(item.id)}
-                        disabled={deletingId === item.id}
-                        className="h-8 w-8 p-0 text-destructive hover:text-destructive"
-                      >
-                        {deletingId === item.id ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Trash2 className="w-4 h-4" />
-                        )}
-                      </Button>
                     </div>
                   </div>
-                  <div className="flex items-center justify-between text-sm">
+                  <div className="flex items-center justify-between text-sm mb-3">
                     <span className="text-muted-foreground">
                       Quantity: <span className="font-medium text-foreground">{item.quantity} {item.unit}</span>
                     </span>
@@ -230,12 +275,71 @@ export default function Inventory() {
                       Expires: <span className="font-medium text-foreground">{item.expiry_date || 'N/A'}</span>
                     </span>
                   </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="sm"
+                      onClick={() => handleMarkItem(item, 'used')}
+                      disabled={actioningId === item.id}
+                      className="flex-1 bg-success hover:bg-success/90 text-white"
+                    >
+                      <CheckCircle2 className="w-4 h-4 mr-1" />
+                      Used
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => handleMarkItem(item, 'wasted')}
+                      disabled={actioningId === item.id}
+                      className="flex-1"
+                    >
+                      <XCircle className="w-4 h-4 mr-1" />
+                      Wasted
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDelete(item.id)}
+                      disabled={deletingId === item.id}
+                      className="px-2 text-muted-foreground hover:text-destructive"
+                    >
+                      {deletingId === item.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </Button>
+                  </div>
                 </Card>
               ))
             )}
           </TabsContent>
         ))}
       </Tabs>
+
+      {/* Action Confirmation Dialog */}
+      <AlertDialog open={showActionDialog} onOpenChange={setShowActionDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {selectedAction === 'used' ? 'Mark as Used?' : 'Mark as Wasted?'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {selectedAction === 'used' 
+                ? `Great! Marking "${selectedItem?.name}" as used will count towards your money saved.`
+                : `Marking "${selectedItem?.name}" as wasted will count towards your money wasted.`}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={confirmMarkItem}
+              className={selectedAction === 'used' ? 'bg-success hover:bg-success/90' : ''}
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
