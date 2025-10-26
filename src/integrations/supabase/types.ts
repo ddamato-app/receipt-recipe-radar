@@ -21,6 +21,7 @@ export type Database = {
           expiry_date: string | null
           id: string
           name: string
+          price: number | null
           quantity: number
           unit: string
           updated_at: string | null
@@ -32,6 +33,7 @@ export type Database = {
           expiry_date?: string | null
           id?: string
           name: string
+          price?: number | null
           quantity?: number
           unit?: string
           updated_at?: string | null
@@ -43,6 +45,7 @@ export type Database = {
           expiry_date?: string | null
           id?: string
           name?: string
+          price?: number | null
           quantity?: number
           unit?: string
           updated_at?: string | null

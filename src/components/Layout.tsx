@@ -1,4 +1,4 @@
-import { Home, Package, PlusCircle, ChefHat, LogOut } from "lucide-react";
+import { Home, Package, PlusCircle, ChefHat, DollarSign, LogOut } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
 import { supabase } from "@/integrations/supabase/client";
@@ -19,6 +19,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
     { icon: Package, label: "Fridge", path: "/inventory" },
     { icon: PlusCircle, label: "Add", path: "/add" },
     { icon: ChefHat, label: "Recipes", path: "/recipes" },
+    { icon: DollarSign, label: "Spending", path: "/spending" },
   ];
 
   return (

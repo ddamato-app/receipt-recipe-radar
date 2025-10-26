@@ -9,6 +9,7 @@ import Home from "./pages/Home";
 import Inventory from "./pages/Inventory";
 import AddItem from "./pages/AddItem";
 import Recipes from "./pages/Recipes";
+import Spending from "./pages/Spending";
 import NotFound from "./pages/NotFound";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -66,6 +67,7 @@ const App = () => {
               <Route path="/inventory" element={<Inventory />} />
               <Route path="/add" element={<AddItem />} />
               <Route path="/recipes" element={<Recipes />} />
+              <Route path="/spending" element={<Spending />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>

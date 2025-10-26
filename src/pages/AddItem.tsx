@@ -17,6 +17,7 @@ type ScannedItem = {
   category: string;
   expiryDate: string;
   daysLeft: number;
+  price?: number;
 };
 
 export default function AddItem() {
@@ -33,6 +34,7 @@ export default function AddItem() {
     unit: "pcs",
     category: "",
     expiryDate: "",
+    price: "",
   });
 
   const handleImageSelect = async (file: File) => {
@@ -129,6 +131,7 @@ export default function AddItem() {
         unit: item.unit,
         category: item.category,
         expiry_date: item.expiryDate,
+        price: item.price || 0,
       }));
 
       const { error } = await supabase
@@ -189,6 +192,7 @@ export default function AddItem() {
           unit: formData.unit,
           category: formData.category,
           expiry_date: formData.expiryDate,
+          price: Number(formData.price) || 0,
         }]);
 
       if (error) throw error;
@@ -204,6 +208,7 @@ export default function AddItem() {
         unit: "pcs",
         category: "",
         expiryDate: "",
+        price: "",
       });
       
       navigate('/inventory');
@@ -315,6 +320,11 @@ export default function AddItem() {
                         <p className="text-xs text-muted-foreground mt-1">
                           Expires: {item.expiryDate} ({item.daysLeft}d)
                         </p>
+                        {item.price && item.price > 0 && (
+                          <p className="text-xs font-semibold text-primary mt-1">
+                            ${item.price.toFixed(2)}
+                          </p>
+                        )}
                       </div>
                       <Check className="w-5 h-5 text-success" />
                     </div>
@@ -421,6 +431,19 @@ export default function AddItem() {
               type="date"
               value={formData.expiryDate}
               onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
+              className="mt-1"
+            />
+          </div>
+
+          <div>
+            <Label htmlFor="price">Price (optional)</Label>
+            <Input
+              id="price"
+              type="number"
+              step="0.01"
+              placeholder="0.00"
+              value={formData.price}
+              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
               className="mt-1"
             />
           </div>

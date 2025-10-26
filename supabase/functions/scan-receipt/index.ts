@@ -44,6 +44,7 @@ serve(async (req) => {
 - Units (pcs, kg, g, liters, etc.)
 - Categories (Dairy, Fruits, Vegetables, Meat, Beverages, Snacks, etc.)
 - Approximate expiration dates based on product type
+- Prices (extract the individual item price if visible, otherwise set to 0)
 
 Return ONLY valid JSON with this structure:
 {
@@ -53,7 +54,8 @@ Return ONLY valid JSON with this structure:
       "quantity": number,
       "unit": "pcs|kg|g|liters|ml",
       "category": "Dairy|Fruits|Vegetables|Meat|Beverages|Snacks|Other",
-      "estimatedDaysToExpiry": number
+      "estimatedDaysToExpiry": number,
+      "price": number
     }
   ]
 }`
@@ -63,7 +65,7 @@ Return ONLY valid JSON with this structure:
             content: [
               {
                 type: "text",
-                text: "Please extract all items from this grocery receipt. Expand any abbreviated product names to their full names."
+                text: "Please extract all items from this grocery receipt. Expand any abbreviated product names to their full names. Extract prices for each item if visible."
               },
               {
                 type: "image_url",
