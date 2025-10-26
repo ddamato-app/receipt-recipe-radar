@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, ChefHat, Sparkles, Loader2, Info, Crown } from "lucide-react";
+import { Clock, Users, ChefHat, Sparkles, Loader2, Info, Crown, AlertCircle } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -11,6 +11,7 @@ import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { SAMPLE_RECIPES } from "@/lib/sampleRecipes";
 import { ProgressIncentive } from "@/components/ProgressIncentive";
 import { AuthModal } from "@/components/AuthModal";
+import { differenceInDays } from "date-fns";
 
 type Recipe = {
   id: string;
@@ -22,6 +23,8 @@ type Recipe = {
   matchingIngredients: string[];
   additionalIngredients: string[];
   instructions: string[];
+  urgencyScore?: number;
+  expiringItems?: Array<{ name: string; daysUntilExpiry: number }>;
 };
 
 type FridgeItem = {
@@ -31,6 +34,8 @@ type FridgeItem = {
   unit: string;
   category: string;
   expiry_date: string | null;
+  price?: number;
+  status?: string;
 };
 
 export default function Recipes() {
@@ -99,7 +104,14 @@ export default function Recipes() {
           ...recipe,
           id: `${Date.now()}-${index}`,
         }));
-        setRecipes(recipesWithIds);
+        
+        // Calculate urgency and sort by expiring items
+        const recipesWithUrgency = recipesWithIds.map((recipe: Recipe) => 
+          calculateRecipeUrgency(recipe)
+        );
+        recipesWithUrgency.sort((a, b) => (b.urgencyScore || 0) - (a.urgencyScore || 0));
+        
+        setRecipes(recipesWithUrgency);
         
         // Increment recipe count for anonymous users
         if (tier === 'anonymous') {
@@ -114,7 +126,7 @@ export default function Recipes() {
         
         toast({
           title: "Recipes generated!",
-          description: `Found ${recipesWithIds.length} delicious recipes for you.`,
+          description: `Found ${recipesWithUrgency.length} delicious recipes for you.`,
         });
       }
     } catch (error: any) {
@@ -129,9 +141,95 @@ export default function Recipes() {
     }
   };
 
-  const getMatchPercentage = (matchingIngredients: string[]) => {
-    if (fridgeItems.length === 0) return 0;
-    return Math.round((matchingIngredients.length / fridgeItems.length) * 100);
+  const calculateRecipeUrgency = (recipe: Recipe): Recipe => {
+    const expiringItems: Array<{ name: string; daysUntilExpiry: number }> = [];
+    let urgencyScore = 0;
+
+    recipe.matchingIngredients.forEach((ingredient) => {
+      const fridgeItem = fridgeItems.find(
+        (item) => item.name.toLowerCase().includes(ingredient.toLowerCase()) ||
+                  ingredient.toLowerCase().includes(item.name.toLowerCase())
+      );
+
+      if (fridgeItem?.expiry_date) {
+        const daysUntilExpiry = differenceInDays(new Date(fridgeItem.expiry_date), new Date());
+        
+        if (daysUntilExpiry <= 2) {
+          expiringItems.push({ name: fridgeItem.name, daysUntilExpiry });
+          urgencyScore += (2 - daysUntilExpiry) * 10; // Higher score for items expiring sooner
+        }
+      }
+    });
+
+    return {
+      ...recipe,
+      urgencyScore,
+      expiringItems: expiringItems.length > 0 ? expiringItems : undefined,
+    };
+  };
+
+  const handleCookRecipe = async (recipe: Recipe) => {
+    try {
+      // Find and mark matching ingredients as used
+      const itemsToMark: string[] = [];
+      
+      for (const ingredient of recipe.matchingIngredients) {
+        const fridgeItem = fridgeItems.find(
+          (item) => item.name.toLowerCase().includes(ingredient.toLowerCase()) ||
+                    ingredient.toLowerCase().includes(item.name.toLowerCase())
+        );
+
+        if (fridgeItem) {
+          itemsToMark.push(fridgeItem.id);
+          
+          // Update item as used
+          const { error } = await supabase
+            .from('fridge_items')
+            .update({ 
+              status: 'used',
+              completed_at: new Date().toISOString()
+            })
+            .eq('id', fridgeItem.id);
+
+          if (error) throw error;
+        }
+      }
+
+      // Track cooked recipe
+      const cookedRecipes = JSON.parse(localStorage.getItem('cookedRecipes') || '[]');
+      cookedRecipes.push({
+        recipeId: recipe.id,
+        recipeName: recipe.name,
+        cookedAt: new Date().toISOString(),
+        ingredientsUsed: recipe.matchingIngredients,
+      });
+      localStorage.setItem('cookedRecipes', JSON.stringify(cookedRecipes));
+
+      // Refresh fridge items
+      await fetchFridgeItems();
+
+      toast({
+        title: "🎉 Recipe cooked!",
+        description: `Marked ${itemsToMark.length} ingredients as used. Enjoy your ${recipe.name}!`,
+        className: "border-success",
+      });
+
+      // Remove recipe from list
+      setRecipes(recipes.filter(r => r.id !== recipe.id));
+    } catch (error: any) {
+      console.error('Error marking recipe as cooked:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark ingredients as used",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getMatchPercentage = (matchingIngredients: string[], additionalIngredients: string[]) => {
+    const totalIngredients = matchingIngredients.length + additionalIngredients.length;
+    if (totalIngredients === 0) return 0;
+    return Math.round((matchingIngredients.length / totalIngredients) * 100);
   };
 
   const recipeLimit = 3;
@@ -261,10 +359,29 @@ export default function Recipes() {
       ) : (
         <div className="space-y-4">
           {recipes.map((recipe) => {
-            const matchPercentage = getMatchPercentage(recipe.matchingIngredients);
+            const totalIngredients = recipe.matchingIngredients.length + recipe.additionalIngredients.length;
+            const matchPercentage = getMatchPercentage(recipe.matchingIngredients, recipe.additionalIngredients);
+            const isUrgent = recipe.expiringItems && recipe.expiringItems.length > 0;
             
             return (
-              <Card key={recipe.id} className="p-5 shadow-lg hover:shadow-xl transition-all">
+              <Card key={recipe.id} className={`p-5 shadow-lg hover:shadow-xl transition-all ${isUrgent ? 'border-2 border-destructive' : ''}`}>
+                {/* Urgent Badge */}
+                {isUrgent && (
+                  <div className="mb-3 p-2 bg-destructive/10 rounded-lg border border-destructive/20">
+                    <div className="flex items-center gap-2 mb-1">
+                      <AlertCircle className="w-4 h-4 text-destructive" />
+                      <span className="text-sm font-semibold text-destructive">URGENT - Use expiring items!</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {recipe.expiringItems!.map((item, idx) => (
+                        <Badge key={idx} variant="destructive" className="text-xs">
+                          {item.name} (expires {item.daysUntilExpiry === 0 ? 'today' : item.daysUntilExpiry === 1 ? 'tomorrow' : `in ${item.daysUntilExpiry} days`})
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
                 <div className="flex items-start justify-between mb-3">
                   <div className="flex-1">
                     <h3 className="text-xl font-bold text-foreground mb-1">{recipe.name}</h3>
@@ -291,7 +408,9 @@ export default function Recipes() {
                 {/* Ingredient Match */}
                 <div className="mb-4">
                   <div className="flex items-center justify-between text-sm mb-2">
-                    <span className="text-muted-foreground">Ingredient Match</span>
+                    <span className="text-muted-foreground font-semibold">
+                      You have {recipe.matchingIngredients.length}/{totalIngredients} ingredients
+                    </span>
                     <span className="font-semibold text-primary">{matchPercentage}%</span>
                   </div>
                   <div className="w-full bg-muted rounded-full h-2">
@@ -302,11 +421,11 @@ export default function Recipes() {
                   </div>
                   <div className="mt-2 space-y-1">
                     <p className="text-xs text-muted-foreground">
-                      <strong>You have:</strong> {recipe.matchingIngredients.join(', ')}
+                      <strong>✓ You have:</strong> {recipe.matchingIngredients.join(', ')}
                     </p>
                     {recipe.additionalIngredients.length > 0 && (
                       <p className="text-xs text-muted-foreground">
-                        <strong>You'll need:</strong> {recipe.additionalIngredients.join(', ')}
+                        <strong>🛒 You'll need:</strong> {recipe.additionalIngredients.join(', ')}
                       </p>
                     )}
                   </div>
@@ -325,9 +444,22 @@ export default function Recipes() {
                   </ol>
                 </div>
 
-                <Button className="w-full bg-primary text-white shadow-md hover:shadow-lg transition-all">
-                  View Full Recipe
-                </Button>
+                {/* Action Buttons */}
+                <div className="flex gap-2">
+                  <Button 
+                    onClick={() => handleCookRecipe(recipe)}
+                    className="flex-1 bg-success text-white shadow-md hover:shadow-lg transition-all hover:bg-success/90"
+                  >
+                    <ChefHat className="w-4 h-4 mr-2" />
+                    Cook This
+                  </Button>
+                  <Button 
+                    variant="outline"
+                    className="flex-1 shadow-md hover:shadow-lg transition-all"
+                  >
+                    View Full Recipe
+                  </Button>
+                </div>
               </Card>
             );
           })}
