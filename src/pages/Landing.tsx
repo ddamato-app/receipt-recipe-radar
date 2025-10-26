@@ -8,15 +8,15 @@ const Landing = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center px-4 py-20 bg-gradient-to-br from-primary via-primary/90 to-blue-600">
-        <div className="max-w-4xl mx-auto text-center space-y-8 animate-fade-in">
+      <section className="relative min-h-screen flex items-center justify-center px-6 py-20 bg-gradient-to-br from-primary via-primary/90 to-blue-600">
+        <div className="w-[90%] max-w-4xl mx-auto text-center space-y-6 md:space-y-8 animate-fade-in">
           {/* Main Heading */}
-          <h1 className="text-5xl md:text-7xl font-bold text-white leading-tight">
+          <h1 className="text-[2rem] md:text-7xl font-bold text-white leading-[1.2]">
             Stop Asking<br />'What's for Dinner?'
           </h1>
           
           {/* Subheading */}
-          <p className="text-xl md:text-2xl text-white/90 max-w-3xl mx-auto leading-relaxed">
+          <p className="text-lg md:text-2xl text-white/90 max-w-3xl mx-auto leading-[1.6]">
             Your smart fridge companion that saves money, reduces waste, and always knows what to cook.
           </p>
 
@@ -25,14 +25,14 @@ const Landing = () => {
             <Button 
               size="lg"
               onClick={() => navigate("/")}
-              className="text-lg px-8 py-6 h-auto bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-200 shadow-lg"
+              className="text-base md:text-lg px-6 md:px-8 py-5 md:py-6 h-auto bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-200 shadow-lg w-full sm:w-auto"
             >
               Start Free Trial
             </Button>
             <Button 
               size="lg"
               variant="outline"
-              className="text-lg px-8 py-6 h-auto bg-transparent text-white border-2 border-white hover:bg-white/10 hover:scale-105 transition-all duration-200"
+              className="text-base md:text-lg px-6 md:px-8 py-5 md:py-6 h-auto bg-transparent text-white border-2 border-white hover:bg-white/10 hover:scale-105 transition-all duration-200 w-full sm:w-auto"
             >
               <Play className="mr-2 h-5 w-5" />
               Watch How It Works
@@ -63,9 +63,9 @@ const Landing = () => {
       </section>
 
       {/* The Story Section */}
-      <section className="py-20 md:py-32 px-4 bg-background">
-        <div className="max-w-7xl mx-auto">
-          <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
+      <section className="py-12 md:py-32 px-6 bg-background">
+        <div className="w-[90%] max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-8 md:gap-16 items-center">
             {/* Left: Image Placeholder */}
             <div className="order-2 md:order-1 animate-fade-in">
               <div className="aspect-[4/3] rounded-2xl bg-muted flex items-center justify-center overflow-hidden shadow-lg">
@@ -78,11 +78,11 @@ const Landing = () => {
 
             {/* Right: Story Text */}
             <div className="order-1 md:order-2 space-y-6 animate-fade-in">
-              <h2 className="text-4xl md:text-5xl font-bold text-foreground leading-tight">
+              <h2 className="text-[1.75rem] md:text-5xl font-bold text-foreground leading-[1.2]">
                 It Started With a Simple Question
               </h2>
 
-              <div className="space-y-4 text-lg text-foreground/80 leading-relaxed">
+              <div className="space-y-6 text-base text-foreground/80 leading-[1.6]">
                 <p>Every single evening, the same routine.</p>
 
                 <p>I&apos;d open the fridge and ask my wife: &apos;What should we make for dinner tonight?&apos;</p>
@@ -101,7 +101,7 @@ const Landing = () => {
                   We weren&apos;t alone. Families waste $1,500 to $3,000 every year on food that never gets eaten.
                 </p>
 
-                <p className="text-xl font-medium text-foreground">
+                <p className="text-lg md:text-xl font-medium text-foreground">
                   FreshTrack was born from our kitchen frustration. Now that daily &apos;what&apos;s for dinner?&apos; conversation is easy.
                 </p>
               </div>
@@ -110,7 +110,7 @@ const Landing = () => {
                 <Button 
                   size="lg"
                   onClick={() => navigate("/")}
-                  className="text-lg px-8 py-6 h-auto bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-200 shadow-lg"
+                  className="text-base md:text-lg px-6 md:px-8 py-5 md:py-6 h-auto bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-200 shadow-lg w-full sm:w-auto"
                 >
                   Start Using FreshTrack
                 </Button>
@@ -121,82 +121,82 @@ const Landing = () => {
       </section>
 
       {/* Statistics Section */}
-      <section className="py-20 md:py-32 px-4 bg-muted/30">
-        <div className="max-w-7xl mx-auto space-y-12">
+      <section className="py-12 md:py-32 px-6 bg-muted/30">
+        <div className="w-[90%] max-w-7xl mx-auto space-y-8 md:space-y-12">
           {/* Header */}
           <div className="text-center space-y-4 animate-fade-in">
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground">
+            <h2 className="text-[1.75rem] md:text-5xl font-bold text-foreground leading-[1.2]">
               The Hidden Cost of Forgotten Food
             </h2>
-            <p className="text-xl text-foreground/70 max-w-3xl mx-auto">
+            <p className="text-base md:text-xl text-foreground/70 max-w-3xl mx-auto leading-[1.6]">
               Food waste isn&apos;t just an environmental problem—it&apos;s draining your wallet
             </p>
           </div>
 
           {/* Stat Cards */}
-          <div className="grid md:grid-cols-3 gap-8 animate-fade-in">
+          <div className="grid md:grid-cols-3 gap-6 md:gap-8 animate-fade-in">
             {/* Card 1 */}
-            <div className="bg-background rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-200 text-center space-y-4">
-              <div className="text-6xl mb-4">💸</div>
-              <div className="text-4xl md:text-5xl font-bold text-primary">
+            <div className="bg-background rounded-2xl p-6 md:p-8 shadow-lg hover:shadow-xl transition-shadow duration-200 text-center space-y-3 md:space-y-4">
+              <div className="text-5xl md:text-6xl mb-3 md:mb-4">💸</div>
+              <div className="text-3xl md:text-5xl font-bold text-primary">
                 $1,500-$3,000
               </div>
-              <p className="text-lg text-foreground/70 leading-relaxed">
+              <p className="text-base md:text-lg text-foreground/70 leading-[1.6]">
                 Wasted per year by the average family of four
               </p>
             </div>
 
             {/* Card 2 */}
-            <div className="bg-background rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-200 text-center space-y-4">
-              <div className="text-6xl mb-4">🗑️</div>
-              <div className="text-4xl md:text-5xl font-bold text-primary">
+            <div className="bg-background rounded-2xl p-6 md:p-8 shadow-lg hover:shadow-xl transition-shadow duration-200 text-center space-y-3 md:space-y-4">
+              <div className="text-5xl md:text-6xl mb-3 md:mb-4">🗑️</div>
+              <div className="text-3xl md:text-5xl font-bold text-primary">
                 325 pounds
               </div>
-              <p className="text-lg text-foreground/70 leading-relaxed">
+              <p className="text-base md:text-lg text-foreground/70 leading-[1.6]">
                 of food thrown away per person annually in the US
               </p>
             </div>
 
             {/* Card 3 */}
-            <div className="bg-background rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-200 text-center space-y-4">
-              <div className="text-6xl mb-4">🌍</div>
-              <div className="text-4xl md:text-5xl font-bold text-primary">
+            <div className="bg-background rounded-2xl p-6 md:p-8 shadow-lg hover:shadow-xl transition-shadow duration-200 text-center space-y-3 md:space-y-4">
+              <div className="text-5xl md:text-6xl mb-3 md:mb-4">🌍</div>
+              <div className="text-3xl md:text-5xl font-bold text-primary">
                 40%
               </div>
-              <p className="text-lg text-foreground/70 leading-relaxed">
+              <p className="text-base md:text-lg text-foreground/70 leading-[1.6]">
                 of all food produced goes uneaten in America
               </p>
             </div>
           </div>
 
           {/* Bottom Text */}
-          <p className="text-center text-xl text-foreground/80 max-w-2xl mx-auto pt-8 animate-fade-in">
+          <p className="text-center text-base md:text-xl text-foreground/80 max-w-2xl mx-auto pt-6 md:pt-8 animate-fade-in leading-[1.6]">
             That&apos;s like throwing away one out of every five grocery bags you buy.
           </p>
         </div>
       </section>
 
       {/* Features Section */}
-      <section className="py-20 md:py-32 px-4 bg-background">
-        <div className="max-w-7xl mx-auto space-y-20">
+      <section className="py-12 md:py-32 px-6 bg-background">
+        <div className="w-[90%] max-w-7xl mx-auto space-y-12 md:space-y-20">
           {/* Header */}
           <div className="text-center space-y-4 animate-fade-in">
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground">
+            <h2 className="text-[1.75rem] md:text-5xl font-bold text-foreground leading-[1.2]">
               Meet Your Smart Fridge Companion
             </h2>
           </div>
 
           {/* Feature 1 - Text Left, Image Right */}
-          <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
-            <div className="space-y-6 animate-fade-in">
-              <div className="text-5xl mb-4">📸</div>
-              <h3 className="text-3xl md:text-4xl font-bold text-foreground">
+          <div className="grid md:grid-cols-2 gap-8 md:gap-16 items-center">
+            <div className="space-y-4 md:space-y-6 animate-fade-in">
+              <div className="text-4xl md:text-5xl mb-3 md:mb-4">📸</div>
+              <h3 className="text-xl md:text-4xl font-bold text-foreground leading-[1.2]">
                 Never Forget What You Have
               </h3>
-              <p className="text-lg text-foreground/80 leading-relaxed">
+              <p className="text-base md:text-lg text-foreground/80 leading-[1.6]">
                 Forward your grocery receipt or add items manually. FreshTrack tracks everything in your fridge.
               </p>
-              <ul className="space-y-3 text-foreground/70">
+              <ul className="space-y-3 text-base text-foreground/70">
                 <li className="flex items-start gap-3">
                   <span className="text-primary mt-1">✓</span>
                   <span>Scan receipts automatically</span>
@@ -217,27 +217,27 @@ const Landing = () => {
             </div>
             <div className="animate-fade-in">
               <div className="aspect-[4/3] rounded-2xl bg-muted flex items-center justify-center shadow-lg">
-                <p className="text-muted-foreground">Screenshot: Fridge inventory</p>
+                <p className="text-muted-foreground text-sm">Screenshot: Fridge inventory</p>
               </div>
             </div>
           </div>
 
           {/* Feature 2 - Image Left, Text Right */}
-          <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
+          <div className="grid md:grid-cols-2 gap-8 md:gap-16 items-center">
             <div className="order-2 md:order-1 animate-fade-in">
               <div className="aspect-[4/3] rounded-2xl bg-muted flex items-center justify-center shadow-lg">
-                <p className="text-muted-foreground">Screenshot: Recipe suggestions</p>
+                <p className="text-muted-foreground text-sm">Screenshot: Recipe suggestions</p>
               </div>
             </div>
-            <div className="order-1 md:order-2 space-y-6 animate-fade-in">
-              <div className="text-5xl mb-4">🍳</div>
-              <h3 className="text-3xl md:text-4xl font-bold text-foreground">
+            <div className="order-1 md:order-2 space-y-4 md:space-y-6 animate-fade-in">
+              <div className="text-4xl md:text-5xl mb-3 md:mb-4">🍳</div>
+              <h3 className="text-xl md:text-4xl font-bold text-foreground leading-[1.2]">
                 Know What to Cook Tonight
               </h3>
-              <p className="text-lg text-foreground/80 leading-relaxed">
+              <p className="text-base md:text-lg text-foreground/80 leading-[1.6]">
                 Get instant recipe suggestions using exactly what you have.
               </p>
-              <ul className="space-y-3 text-foreground/70">
+              <ul className="space-y-3 text-base text-foreground/70">
                 <li className="flex items-start gap-3">
                   <span className="text-primary mt-1">✓</span>
                   <span>Recipes using your ingredients</span>
@@ -255,16 +255,16 @@ const Landing = () => {
           </div>
 
           {/* Feature 3 - Text Left, Image Right */}
-          <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
-            <div className="space-y-6 animate-fade-in">
-              <div className="text-5xl mb-4">💰</div>
-              <h3 className="text-3xl md:text-4xl font-bold text-foreground">
+          <div className="grid md:grid-cols-2 gap-8 md:gap-16 items-center">
+            <div className="space-y-4 md:space-y-6 animate-fade-in">
+              <div className="text-4xl md:text-5xl mb-3 md:mb-4">💰</div>
+              <h3 className="text-xl md:text-4xl font-bold text-foreground leading-[1.2]">
                 See Your Savings Add Up
               </h3>
-              <p className="text-lg text-foreground/80 leading-relaxed">
+              <p className="text-base md:text-lg text-foreground/80 leading-[1.6]">
                 Track every dollar saved by using food before it expires.
               </p>
-              <ul className="space-y-3 text-foreground/70">
+              <ul className="space-y-3 text-base text-foreground/70">
                 <li className="flex items-start gap-3">
                   <span className="text-primary mt-1">✓</span>
                   <span>Money saved vs wasted</span>
@@ -281,7 +281,7 @@ const Landing = () => {
             </div>
             <div className="animate-fade-in">
               <div className="aspect-[4/3] rounded-2xl bg-muted flex items-center justify-center shadow-lg">
-                <p className="text-muted-foreground">Screenshot: Savings dashboard</p>
+                <p className="text-muted-foreground text-sm">Screenshot: Savings dashboard</p>
               </div>
             </div>
           </div>
@@ -289,17 +289,17 @@ const Landing = () => {
       </section>
 
       {/* Pricing Section */}
-      <section className="py-20 md:py-32 px-4 bg-muted/30">
-        <div className="max-w-7xl mx-auto space-y-12">
+      <section className="py-12 md:py-32 px-6 bg-muted/30">
+        <div className="w-[90%] max-w-7xl mx-auto space-y-8 md:space-y-12">
           {/* Header */}
           <div className="text-center space-y-4 animate-fade-in">
-            <h2 className="text-4xl md:text-5xl font-bold text-foreground">
+            <h2 className="text-[1.75rem] md:text-5xl font-bold text-foreground leading-[1.2]">
               Start Free, Upgrade When Ready
             </h2>
           </div>
 
           {/* Pricing Cards */}
-          <div className="grid md:grid-cols-3 gap-8 items-center">
+          <div className="grid md:grid-cols-3 gap-6 md:gap-8 items-stretch md:items-center">
             {/* Card 1 - FREE */}
             <div className="bg-background rounded-2xl p-8 shadow-lg border border-border animate-fade-in">
               <div className="text-center space-y-4 mb-6">
@@ -413,20 +413,20 @@ const Landing = () => {
           </div>
 
           {/* Bottom Text */}
-          <p className="text-center text-lg text-foreground/80 max-w-2xl mx-auto animate-fade-in">
+          <p className="text-center text-base md:text-lg text-foreground/80 max-w-2xl mx-auto animate-fade-in leading-[1.6]">
             💡 Average family saves $1,500/year. FreshTrack pays for itself.
           </p>
         </div>
       </section>
 
       {/* Final CTA Section */}
-      <section className="py-20 md:py-32 px-4 bg-gradient-to-br from-primary via-primary/90 to-blue-600">
-        <div className="max-w-4xl mx-auto text-center space-y-8 animate-fade-in">
-          <h2 className="text-4xl md:text-6xl font-bold text-white leading-tight">
+      <section className="py-12 md:py-32 px-6 bg-gradient-to-br from-primary via-primary/90 to-blue-600">
+        <div className="w-[90%] max-w-4xl mx-auto text-center space-y-6 md:space-y-8 animate-fade-in">
+          <h2 className="text-[1.75rem] md:text-6xl font-bold text-white leading-[1.2]">
             Ready to Stop Wasting Food and Money?
           </h2>
           
-          <p className="text-xl md:text-2xl text-white/90">
+          <p className="text-lg md:text-2xl text-white/90 leading-[1.6]">
             Join thousands of families who&apos;ve transformed their kitchens.
           </p>
 
@@ -434,21 +434,21 @@ const Landing = () => {
             <Button 
               size="lg"
               onClick={() => navigate("/")}
-              className="text-xl px-12 py-8 h-auto bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-200 shadow-2xl font-bold"
+              className="text-base md:text-xl px-8 md:px-12 py-6 md:py-8 h-auto bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-200 shadow-2xl font-bold w-full sm:w-auto"
             >
               Start Using FreshTrack Free
             </Button>
           </div>
 
-          <div className="flex flex-wrap justify-center gap-6 text-white/90 text-base pt-4">
+          <div className="flex flex-wrap justify-center gap-4 md:gap-6 text-white/90 text-sm md:text-base pt-4">
             <span className="flex items-center gap-2">
-              <span className="text-lg">✓</span> No credit card required
+              <span className="text-base md:text-lg">✓</span> No credit card required
             </span>
             <span className="flex items-center gap-2">
-              <span className="text-lg">✓</span> Free forever plan
+              <span className="text-base md:text-lg">✓</span> Free forever plan
             </span>
             <span className="flex items-center gap-2">
-              <span className="text-lg">✓</span> Upgrade anytime
+              <span className="text-base md:text-lg">✓</span> Upgrade anytime
             </span>
           </div>
         </div>
