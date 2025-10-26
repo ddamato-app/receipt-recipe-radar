@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Camera, Upload, X, Check, Loader2 } from "lucide-react";
+import { Camera, Upload, X, Check, Loader2, DollarSign, ChevronDown, ChevronUp } from "lucide-react";
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -28,14 +28,43 @@ export default function AddItem() {
   const [scannedImage, setScannedImage] = useState<string | null>(null);
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
+  const [showPriceInput, setShowPriceInput] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
-    quantity: "",
+    quantity: "1",
     unit: "pcs",
     category: "",
     expiryDate: "",
+    expiryQuick: "",
     price: "",
   });
+
+  // Common items with their default categories
+  const commonItems = [
+    { name: "Milk", category: "Dairy", expiry: 7 },
+    { name: "Eggs", category: "Dairy", expiry: 14 },
+    { name: "Bread", category: "Bakery", expiry: 3 },
+    { name: "Chicken", category: "Meat", expiry: 3 },
+    { name: "Lettuce", category: "Vegetables", expiry: 5 },
+    { name: "Tomatoes", category: "Vegetables", expiry: 7 },
+    { name: "Yogurt", category: "Dairy", expiry: 14 },
+    { name: "Cheese", category: "Dairy", expiry: 21 },
+    { name: "Apples", category: "Fruits", expiry: 14 },
+    { name: "Carrots", category: "Vegetables", expiry: 14 },
+    { name: "Ground Beef", category: "Meat", expiry: 2 },
+    { name: "Butter", category: "Dairy", expiry: 30 },
+  ];
+
+  // Autocomplete suggestions
+  const itemSuggestions = [
+    ...commonItems.map(item => ({ name: item.name, category: item.category })),
+    { name: "Orange Juice", category: "Beverages" },
+    { name: "Banana", category: "Fruits" },
+    { name: "Broccoli", category: "Vegetables" },
+    { name: "Salmon", category: "Meat" },
+    { name: "Rice", category: "Other" },
+    { name: "Pasta", category: "Other" },
+  ];
 
   const handleImageSelect = async (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -159,10 +188,78 @@ export default function AddItem() {
     }
   };
 
+  const handleQuickAdd = async (item: typeof commonItems[0]) => {
+    setIsSaving(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "Please log in to add items",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const expiryDate = new Date();
+      expiryDate.setDate(expiryDate.getDate() + item.expiry);
+
+      const { error } = await supabase
+        .from('fridge_items')
+        .insert([{
+          user_id: user.id,
+          name: item.name,
+          quantity: 1,
+          unit: "pcs",
+          category: item.category,
+          expiry_date: expiryDate.toISOString().split('T')[0],
+          price: 0,
+        }]);
+
+      if (error) throw error;
+
+      toast({
+        title: "Item Added!",
+        description: `${item.name} has been added to your fridge`,
+      });
+    } catch (error: any) {
+      console.error('Error adding item:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add item",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleExpiryQuickSelect = (days: number) => {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    setFormData({ 
+      ...formData, 
+      expiryDate: date.toISOString().split('T')[0],
+      expiryQuick: days.toString()
+    });
+  };
+
+  const handleItemNameChange = (name: string) => {
+    const suggestion = itemSuggestions.find(
+      item => item.name.toLowerCase() === name.toLowerCase()
+    );
+    
+    if (suggestion && !formData.category) {
+      setFormData({ ...formData, name, category: suggestion.category });
+    } else {
+      setFormData({ ...formData, name });
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.quantity || !formData.category || !formData.expiryDate) {
+    if (!formData.name || !formData.category || !formData.expiryDate) {
       toast({
         title: "Missing Information",
         description: "Please fill in all required fields",
@@ -188,7 +285,7 @@ export default function AddItem() {
         .insert([{
           user_id: user.id,
           name: formData.name,
-          quantity: Number(formData.quantity),
+          quantity: Number(formData.quantity) || 1,
           unit: formData.unit,
           category: formData.category,
           expiry_date: formData.expiryDate,
@@ -204,12 +301,14 @@ export default function AddItem() {
 
       setFormData({
         name: "",
-        quantity: "",
+        quantity: "1",
         unit: "pcs",
         category: "",
         expiryDate: "",
+        expiryQuick: "",
         price: "",
       });
+      setShowPriceInput(false);
       
       navigate('/inventory');
     } catch (error: any) {
@@ -354,6 +453,24 @@ export default function AddItem() {
         </Card>
       )}
 
+      {/* Quick Add Section */}
+      <Card className="p-6 shadow-lg">
+        <h2 className="text-xl font-bold text-foreground mb-4">Quick Add</h2>
+        <div className="grid grid-cols-3 gap-2">
+          {commonItems.map((item) => (
+            <Button
+              key={item.name}
+              variant="outline"
+              onClick={() => handleQuickAdd(item)}
+              disabled={isSaving}
+              className="h-auto py-3 px-2 text-sm"
+            >
+              {item.name}
+            </Button>
+          ))}
+        </div>
+      </Card>
+
       {/* Manual Entry Form */}
       <Card className="p-6 shadow-lg">
         <h2 className="text-xl font-bold text-foreground mb-4">Add Manually</h2>
@@ -363,43 +480,17 @@ export default function AddItem() {
             <Label htmlFor="name">Item Name *</Label>
             <Input
               id="name"
+              list="item-suggestions"
               placeholder="e.g., Milk, Eggs, Chicken"
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) => handleItemNameChange(e.target.value)}
               className="mt-1"
             />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="quantity">Quantity *</Label>
-              <Input
-                id="quantity"
-                type="number"
-                placeholder="0"
-                value={formData.quantity}
-                onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
-                className="mt-1"
-              />
-            </div>
-            <div>
-              <Label htmlFor="unit">Unit</Label>
-              <Select
-                value={formData.unit}
-                onValueChange={(value) => setFormData({ ...formData, unit: value })}
-              >
-                <SelectTrigger className="mt-1">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="pcs">pieces</SelectItem>
-                  <SelectItem value="g">grams</SelectItem>
-                  <SelectItem value="kg">kilograms</SelectItem>
-                  <SelectItem value="ml">milliliters</SelectItem>
-                  <SelectItem value="liter">liters</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <datalist id="item-suggestions">
+              {itemSuggestions.map((item) => (
+                <option key={item.name} value={item.name} />
+              ))}
+            </datalist>
           </div>
 
           <div>
@@ -425,28 +516,91 @@ export default function AddItem() {
           </div>
 
           <div>
-            <Label htmlFor="expiryDate">Expiration Date *</Label>
-            <Input
-              id="expiryDate"
-              type="date"
-              value={formData.expiryDate}
-              onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value })}
-              className="mt-1"
-            />
+            <Label>Expiration *</Label>
+            <div className="grid grid-cols-2 gap-2 mt-2">
+              <Button
+                type="button"
+                variant={formData.expiryQuick === "3" ? "default" : "outline"}
+                onClick={() => handleExpiryQuickSelect(3)}
+                className="text-sm"
+              >
+                3 days
+              </Button>
+              <Button
+                type="button"
+                variant={formData.expiryQuick === "7" ? "default" : "outline"}
+                onClick={() => handleExpiryQuickSelect(7)}
+                className="text-sm"
+              >
+                1 week
+              </Button>
+              <Button
+                type="button"
+                variant={formData.expiryQuick === "14" ? "default" : "outline"}
+                onClick={() => handleExpiryQuickSelect(14)}
+                className="text-sm"
+              >
+                2 weeks
+              </Button>
+              <Button
+                type="button"
+                variant={formData.expiryQuick === "30" ? "default" : "outline"}
+                onClick={() => handleExpiryQuickSelect(30)}
+                className="text-sm"
+              >
+                1 month
+              </Button>
+            </div>
+            <div className="mt-2">
+              <Input
+                id="expiryDate"
+                type="date"
+                value={formData.expiryDate}
+                onChange={(e) => setFormData({ ...formData, expiryDate: e.target.value, expiryQuick: "" })}
+                className="text-sm"
+                placeholder="Or pick custom date"
+              />
+            </div>
           </div>
 
-          <div>
-            <Label htmlFor="price">Price (optional)</Label>
-            <Input
-              id="price"
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={formData.price}
-              onChange={(e) => setFormData({ ...formData, price: e.target.value })}
-              className="mt-1"
-            />
-          </div>
+          {!showPriceInput ? (
+            <Button
+              type="button"
+              variant="ghost"
+              onClick={() => setShowPriceInput(true)}
+              className="w-full text-muted-foreground"
+            >
+              <DollarSign className="w-4 h-4 mr-2" />
+              Add price for tracking
+              <ChevronDown className="w-4 h-4 ml-2" />
+            </Button>
+          ) : (
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="price">Price (optional)</Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    setShowPriceInput(false);
+                    setFormData({ ...formData, price: "" });
+                  }}
+                  className="h-6 px-2"
+                >
+                  <ChevronUp className="w-4 h-4" />
+                </Button>
+              </div>
+              <Input
+                id="price"
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={formData.price}
+                onChange={(e) => setFormData({ ...formData, price: e.target.value })}
+              />
+            </div>
+          )}
 
           <Button 
             type="submit" 
