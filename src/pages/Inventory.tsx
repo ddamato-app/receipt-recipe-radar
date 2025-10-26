@@ -10,6 +10,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
+import { CelebrationAnimation } from "@/components/CelebrationAnimation";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -36,6 +37,8 @@ type FridgeItem = {
   category: string;
   expiry_date: string | null;
   created_at: string;
+  price: number;
+  status: string;
 };
 
 // Emoji mapping for common items
@@ -88,8 +91,11 @@ export default function Inventory() {
   const [selectedAction, setSelectedAction] = useState<'used' | 'wasted' | null>(null);
   const [showDetailDialog, setShowDetailDialog] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [celebrationMessage, setCelebrationMessage] = useState("");
   const [swipingItemId, setSwipingItemId] = useState<string | null>(null);
   const [swipeOffset, setSwipeOffset] = useState(0);
+  const [showActionButtons, setShowActionButtons] = useState<string | null>(null);
   const touchStartX = useRef(0);
   const touchStartY = useRef(0);
   const isSwiping = useRef(false);
@@ -206,11 +212,25 @@ export default function Inventory() {
       if (error) throw error;
 
       setItems(items.filter(item => item.id !== selectedItem.id));
+      
+      const emoji = selectedAction === 'used' ? '✅' : '🗑️';
+      const price = selectedItem.price || 0;
+      const priceText = price > 0 ? ` ($${price.toFixed(2)})` : '';
+      
+      // Show celebration for used items
+      if (selectedAction === 'used') {
+        setCelebrationMessage(`You saved ${priceText || 'this item'} from waste!`);
+        setShowCelebration(true);
+      }
+      
       toast({
-        title: selectedAction === 'used' ? "Item marked as used!" : "Item marked as wasted",
+        title: selectedAction === 'used' 
+          ? `${emoji} Item marked as used!` 
+          : `${emoji} Item marked as wasted`,
         description: selectedAction === 'used' 
-          ? "Great job reducing waste!" 
-          : "Item removed from inventory",
+          ? `Great job! ${priceText} added to money saved` 
+          : `${priceText} added to money wasted`,
+        className: selectedAction === 'used' ? 'border-success' : 'border-destructive',
       });
     } catch (error: any) {
       console.error('Error updating item:', error);
@@ -224,6 +244,7 @@ export default function Inventory() {
       setShowActionDialog(false);
       setSelectedItem(null);
       setSelectedAction(null);
+      setShowActionButtons(null);
     }
   };
 
@@ -437,9 +458,9 @@ export default function Inventory() {
                       </div>
                     )}
 
-                    {/* Swipeable Card */}
+                     {/* Swipeable Card */}
                     <Card 
-                      className="p-3 shadow-md hover:shadow-lg transition-all cursor-pointer relative border-l-4"
+                      className="p-3 shadow-md hover:shadow-lg transition-all relative border-l-4"
                       style={{
                         transform: isSwipingThis ? `translateX(${swipeOffset}px)` : 'translateX(0)',
                         transition: isSwipingThis ? 'none' : 'transform 0.3s ease-out',
@@ -452,9 +473,11 @@ export default function Inventory() {
                       onTouchStart={(e) => handleTouchStart(e, item.id)}
                       onTouchMove={handleTouchMove}
                       onTouchEnd={() => handleTouchEnd(item)}
-                      onClick={() => handleCardClick(item)}
                     >
-                      <div className="flex items-center gap-3">
+                      <div 
+                        className="flex items-center gap-3 cursor-pointer"
+                        onClick={() => handleCardClick(item)}
+                      >
                         {/* Item Emoji */}
                         <div className="text-4xl flex-shrink-0">
                           {getItemEmoji(item.name, item.category)}
@@ -474,8 +497,45 @@ export default function Inventory() {
                             </span>
                             <span>•</span>
                             <span>{item.category}</span>
+                            {item.price > 0 && (
+                              <>
+                                <span>•</span>
+                                <span className="font-semibold text-foreground">
+                                  ${item.price.toFixed(2)}
+                                </span>
+                              </>
+                            )}
                           </div>
                         </div>
+                      </div>
+
+                      {/* Action Buttons - Always visible on desktop/tablet */}
+                      <div className="flex gap-2 mt-3 pt-3 border-t border-border">
+                        <Button
+                          size="sm"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkItem(item, 'used');
+                          }}
+                          disabled={actioningId === item.id}
+                          className="flex-1 bg-success hover:bg-success/90 text-white h-9 animate-fade-in"
+                        >
+                          <CheckCircle2 className="w-4 h-4 mr-1" />
+                          Used
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleMarkItem(item, 'wasted');
+                          }}
+                          disabled={actioningId === item.id}
+                          className="flex-1 h-9 animate-fade-in"
+                        >
+                          <XCircle className="w-4 h-4 mr-1" />
+                          Wasted
+                        </Button>
                       </div>
                     </Card>
                   </div>
@@ -500,6 +560,12 @@ export default function Inventory() {
               <span className="text-muted-foreground">Expires:</span>
               <span className="font-medium">{selectedItem?.expiry_date || 'N/A'}</span>
             </div>
+            {selectedItem && selectedItem.price > 0 && (
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Price:</span>
+                <span className="font-semibold text-foreground">${selectedItem.price.toFixed(2)}</span>
+              </div>
+            )}
             {selectedItem && getStatusBadge(selectedItem.expiry_date)}
           </div>
           <div className="flex gap-2">
@@ -552,8 +618,8 @@ export default function Inventory() {
             </AlertDialogTitle>
             <AlertDialogDescription>
               {selectedAction === 'used' 
-                ? `Great! Marking "${selectedItem?.name}" as used will count towards your money saved.`
-                : `Marking "${selectedItem?.name}" as wasted will count towards your money wasted.`}
+                ? `Great! Marking "${selectedItem?.name}" as used will add ${selectedItem?.price ? `$${selectedItem.price.toFixed(2)}` : 'this item'} to your money saved.`
+                : `Marking "${selectedItem?.name}" as wasted will add ${selectedItem?.price ? `$${selectedItem.price.toFixed(2)}` : 'this item'} to your money wasted.`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -614,6 +680,12 @@ export default function Inventory() {
           </Card>
         </div>
       )}
+      
+      <CelebrationAnimation
+        show={showCelebration}
+        message={celebrationMessage}
+        onComplete={() => setShowCelebration(false)}
+      />
     </div>
   );
 }
