@@ -453,6 +453,60 @@ const Landing = () => {
           </div>
         </div>
       </section>
+
+      {/* Footer */}
+      <footer className="bg-background border-t border-border">
+        <div className="max-w-7xl mx-auto px-4 py-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-8">
+            {/* Product */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-foreground">Product</h3>
+              <ul className="space-y-2 text-sm text-foreground/70">
+                <li><a href="#" className="hover:text-primary transition-colors">Features</a></li>
+                <li><a href="#" className="hover:text-primary transition-colors">Pricing</a></li>
+                <li><a href="#" className="hover:text-primary transition-colors">How It Works</a></li>
+              </ul>
+            </div>
+
+            {/* Company */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-foreground">Company</h3>
+              <ul className="space-y-2 text-sm text-foreground/70">
+                <li><a href="#" className="hover:text-primary transition-colors">About Us</a></li>
+                <li><a href="#" className="hover:text-primary transition-colors">Contact</a></li>
+                <li><a href="#" className="hover:text-primary transition-colors">Press Kit</a></li>
+              </ul>
+            </div>
+
+            {/* Resources */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-foreground">Resources</h3>
+              <ul className="space-y-2 text-sm text-foreground/70">
+                <li><a href="#" className="hover:text-primary transition-colors">Blog</a></li>
+                <li><a href="#" className="hover:text-primary transition-colors">Help Center</a></li>
+                <li><a href="#" className="hover:text-primary transition-colors">FAQs</a></li>
+                <li><a href="#" className="hover:text-primary transition-colors">Privacy</a></li>
+              </ul>
+            </div>
+
+            {/* Connect */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-foreground">Connect</h3>
+              <ul className="space-y-2 text-sm text-foreground/70">
+                <li><a href="#" className="hover:text-primary transition-colors">Twitter</a></li>
+                <li><a href="#" className="hover:text-primary transition-colors">Instagram</a></li>
+                <li><a href="#" className="hover:text-primary transition-colors">Facebook</a></li>
+                <li><a href="#" className="hover:text-primary transition-colors">Email</a></li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Bottom Bar */}
+          <div className="pt-8 border-t border-border text-center text-sm text-foreground/60">
+            © 2025 FreshTrack. Made with 💚 to help families waste less.
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
