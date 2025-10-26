@@ -369,7 +369,7 @@ export default function Home() {
         <Link to="/add">
           <Button className="w-full h-20 bg-gradient-to-br from-primary to-success text-white shadow-md hover:shadow-lg transition-all">
             <div className="flex flex-col items-center gap-2">
-              <Camera className="w-6 h-6" />
+              <span className="text-2xl">📸</span>
               <span className="text-sm font-medium">Scan Receipt</span>
             </div>
           </Button>
