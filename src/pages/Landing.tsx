@@ -418,6 +418,41 @@ const Landing = () => {
           </p>
         </div>
       </section>
+
+      {/* Final CTA Section */}
+      <section className="py-20 md:py-32 px-4 bg-gradient-to-br from-primary via-primary/90 to-blue-600">
+        <div className="max-w-4xl mx-auto text-center space-y-8 animate-fade-in">
+          <h2 className="text-4xl md:text-6xl font-bold text-white leading-tight">
+            Ready to Stop Wasting Food and Money?
+          </h2>
+          
+          <p className="text-xl md:text-2xl text-white/90">
+            Join thousands of families who&apos;ve transformed their kitchens.
+          </p>
+
+          <div className="pt-4">
+            <Button 
+              size="lg"
+              onClick={() => navigate("/")}
+              className="text-xl px-12 py-8 h-auto bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-200 shadow-2xl font-bold"
+            >
+              Start Using FreshTrack Free
+            </Button>
+          </div>
+
+          <div className="flex flex-wrap justify-center gap-6 text-white/90 text-base pt-4">
+            <span className="flex items-center gap-2">
+              <span className="text-lg">✓</span> No credit card required
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="text-lg">✓</span> Free forever plan
+            </span>
+            <span className="flex items-center gap-2">
+              <span className="text-lg">✓</span> Upgrade anytime
+            </span>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
