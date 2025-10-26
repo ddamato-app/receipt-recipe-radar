@@ -37,6 +37,45 @@ type FridgeItem = {
   created_at: string;
 };
 
+// Emoji mapping for common items
+const getItemEmoji = (name: string, category: string): string => {
+  const lowerName = name.toLowerCase();
+  
+  // Specific items
+  if (lowerName.includes('milk')) return '🥛';
+  if (lowerName.includes('strawberr')) return '🍓';
+  if (lowerName.includes('chicken')) return '🍗';
+  if (lowerName.includes('lettuce')) return '🥬';
+  if (lowerName.includes('yogurt')) return '🥛';
+  if (lowerName.includes('egg')) return '🥚';
+  if (lowerName.includes('bread')) return '🍞';
+  if (lowerName.includes('cheese')) return '🧀';
+  if (lowerName.includes('butter')) return '🧈';
+  if (lowerName.includes('apple')) return '🍎';
+  if (lowerName.includes('banana')) return '🍌';
+  if (lowerName.includes('orange')) return '🍊';
+  if (lowerName.includes('tomato')) return '🍅';
+  if (lowerName.includes('carrot')) return '🥕';
+  if (lowerName.includes('broccoli')) return '🥦';
+  if (lowerName.includes('beef') || lowerName.includes('steak')) return '🥩';
+  if (lowerName.includes('fish') || lowerName.includes('salmon')) return '🐟';
+  if (lowerName.includes('bacon')) return '🥓';
+  if (lowerName.includes('rice')) return '🍚';
+  if (lowerName.includes('pasta')) return '🍝';
+  
+  // Category fallbacks
+  switch (category.toLowerCase()) {
+    case 'dairy': return '🥛';
+    case 'fruits': return '🍎';
+    case 'vegetables': return '🥬';
+    case 'meat': return '🍗';
+    case 'bakery': return '🍞';
+    case 'beverages': return '🥤';
+    case 'snacks': return '🍿';
+    default: return '🥫';
+  }
+};
+
 export default function Inventory() {
   const [searchQuery, setSearchQuery] = useState("");
   const [items, setItems] = useState<FridgeItem[]>([]);
@@ -223,11 +262,11 @@ export default function Inventory() {
 
   const getStatusBadge = (expiryDate: string | null) => {
     const daysLeft = getDaysLeft(expiryDate);
-    if (daysLeft === 999) return <Badge variant="secondary">No expiry</Badge>;
-    if (daysLeft <= 0) return <Badge variant="destructive">Expired</Badge>;
-    if (daysLeft <= 2) return <Badge variant="destructive">{daysLeft}d left</Badge>;
-    if (daysLeft <= 5) return <Badge className="bg-warning text-white">{daysLeft}d left</Badge>;
-    return <Badge className="bg-success text-white">{daysLeft}d left</Badge>;
+    if (daysLeft === 999) return <Badge variant="secondary" className="text-xs">No expiry</Badge>;
+    if (daysLeft <= 0) return <Badge variant="destructive" className="text-xs font-semibold">Expired</Badge>;
+    if (daysLeft <= 2) return <Badge variant="destructive" className="text-xs font-semibold">{daysLeft}d</Badge>;
+    if (daysLeft <= 5) return <Badge className="bg-warning text-white text-xs font-semibold">{daysLeft}d</Badge>;
+    return <Badge className="bg-success text-white text-xs font-semibold">{daysLeft}d</Badge>;
   };
 
   const filterByCategory = (category: string) => {
@@ -362,32 +401,43 @@ export default function Inventory() {
 
                     {/* Swipeable Card */}
                     <Card 
-                      className="p-4 shadow-md hover:shadow-lg transition-all cursor-pointer relative"
+                      className="p-3 shadow-md hover:shadow-lg transition-all cursor-pointer relative border-l-4"
                       style={{
                         transform: isSwipingThis ? `translateX(${swipeOffset}px)` : 'translateX(0)',
-                        transition: isSwipingThis ? 'none' : 'transform 0.3s ease-out'
+                        transition: isSwipingThis ? 'none' : 'transform 0.3s ease-out',
+                        borderLeftColor: 
+                          getDaysLeft(item.expiry_date) <= 0 ? 'hsl(var(--destructive))' :
+                          getDaysLeft(item.expiry_date) <= 2 ? 'hsl(var(--destructive))' :
+                          getDaysLeft(item.expiry_date) <= 5 ? 'hsl(var(--warning))' :
+                          'hsl(var(--success))'
                       }}
                       onTouchStart={(e) => handleTouchStart(e, item.id)}
                       onTouchMove={handleTouchMove}
                       onTouchEnd={() => handleTouchEnd(item)}
                       onClick={() => handleCardClick(item)}
                     >
-                      <div className="flex items-start justify-between mb-2">
-                        <div className="flex-1">
-                          <h3 className="font-semibold text-foreground text-lg">{item.name}</h3>
-                          <p className="text-sm text-muted-foreground">{item.category}</p>
+                      <div className="flex items-center gap-3">
+                        {/* Item Emoji */}
+                        <div className="text-4xl flex-shrink-0">
+                          {getItemEmoji(item.name, item.category)}
                         </div>
-                        <div className="flex items-center gap-2">
-                          {getStatusBadge(item.expiry_date)}
+                        
+                        {/* Item Details */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-start justify-between gap-2 mb-1">
+                            <h3 className="font-semibold text-foreground text-base leading-tight truncate">
+                              {item.name}
+                            </h3>
+                            {getStatusBadge(item.expiry_date)}
+                          </div>
+                          <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                            <span className="font-medium">
+                              {item.quantity} {item.unit}
+                            </span>
+                            <span>•</span>
+                            <span>{item.category}</span>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center justify-between text-sm">
-                        <span className="text-muted-foreground">
-                          Quantity: <span className="font-medium text-foreground">{item.quantity} {item.unit}</span>
-                        </span>
-                        <span className="text-muted-foreground">
-                          Expires: <span className="font-medium text-foreground">{item.expiry_date || 'N/A'}</span>
-                        </span>
                       </div>
                     </Card>
                   </div>
