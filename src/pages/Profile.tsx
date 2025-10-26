@@ -10,9 +10,24 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 
 export default function Profile() {
-  const { user, tier, signOut, itemCount, recipeCountToday } = useAuth();
+  const { 
+    user, 
+    tier, 
+    signOut, 
+    itemCount, 
+    recipeCountToday,
+    devSetTier,
+    devResetItemCount,
+    devResetRecipeCount,
+    devResetAllLimits,
+    devClearAllData,
+    devSimulateUsage,
+  } = useAuth();
   const { toast } = useToast();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showDevTools, setShowDevTools] = useState(
+    import.meta.env.DEV || localStorage.getItem('showDevTools') === 'true'
+  );
   const [stats, setStats] = useState({
     itemsThisMonth: 0,
     recipesGenerated: 0,
@@ -24,6 +39,24 @@ export default function Profile() {
       fetchUserStats();
     }
   }, [tier, user]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.ctrlKey && e.shiftKey && e.key === 'D') {
+        e.preventDefault();
+        const newValue = !showDevTools;
+        setShowDevTools(newValue);
+        localStorage.setItem('showDevTools', String(newValue));
+        toast({
+          title: newValue ? 'Dev Tools Enabled' : 'Dev Tools Disabled',
+          description: newValue ? 'Press Ctrl+Shift+D to hide' : 'Press Ctrl+Shift+D to show',
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showDevTools, toast]);
 
   const fetchUserStats = async () => {
     try {
@@ -59,6 +92,145 @@ export default function Profile() {
       title: 'Signed out',
       description: 'You have been signed out successfully',
     });
+  };
+
+  const renderDevTools = () => {
+    if (!showDevTools) return null;
+    
+    return (
+      <Card className="p-6 shadow-lg border-2 border-warning">
+        <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+          🔧 Developer Testing Tools
+          <Badge variant="outline" className="ml-auto">DEV MODE</Badge>
+        </h3>
+
+        {/* Current State */}
+        <div className="mb-6 p-4 bg-muted/50 rounded-lg space-y-1 text-sm">
+          <p><strong>Current tier:</strong> {tier}</p>
+          <p><strong>Items in fridge:</strong> {itemCount}</p>
+          <p><strong>Recipes today:</strong> {recipeCountToday}</p>
+          <p><strong>Last reset:</strong> {new Date().toDateString()}</p>
+        </div>
+
+        {/* Tier Switcher */}
+        <div className="space-y-4">
+          <div>
+            <p className="text-sm font-semibold text-muted-foreground mb-2">Switch Tier:</p>
+            <div className="flex gap-2">
+              <Button
+                variant={tier === 'anonymous' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  devSetTier('anonymous');
+                  toast({ title: 'Switched to Anonymous' });
+                }}
+              >
+                Anonymous
+              </Button>
+              <Button
+                variant={tier === 'free' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  devSetTier('free');
+                  toast({ title: 'Switched to Free Account' });
+                }}
+              >
+                Free Account
+              </Button>
+              <Button
+                variant={tier === 'pro' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => {
+                  devSetTier('pro');
+                  toast({ title: 'Switched to Pro' });
+                }}
+              >
+                Pro
+              </Button>
+            </div>
+          </div>
+
+          {/* Counter Resets */}
+          <div>
+            <p className="text-sm font-semibold text-muted-foreground mb-2">Reset Counters:</p>
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  devResetItemCount();
+                  toast({ title: 'Item count reset' });
+                }}
+              >
+                Reset Item Count
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  devResetRecipeCount();
+                  toast({ title: 'Recipe count reset' });
+                }}
+              >
+                Reset Recipe Count
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  devResetAllLimits();
+                  toast({ title: 'All limits reset' });
+                }}
+              >
+                Reset All Limits
+              </Button>
+            </div>
+          </div>
+
+          {/* Data Management */}
+          <div>
+            <p className="text-sm font-semibold text-muted-foreground mb-2">Data Management:</p>
+            <div className="flex gap-2 flex-wrap">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  if (confirm('Clear all localStorage data?')) {
+                    devClearAllData();
+                    toast({ title: 'All data cleared', variant: 'destructive' });
+                  }
+                }}
+              >
+                Clear All Data
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  window.location.reload();
+                }}
+              >
+                Load Sample Data
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  devSimulateUsage();
+                  toast({ title: '30 days usage simulated' });
+                }}
+              >
+                Simulate 30 Days Usage
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-xs text-muted-foreground mt-4 text-center">
+          Press <kbd className="px-1 py-0.5 bg-muted rounded">Ctrl+Shift+D</kbd> to toggle dev tools
+        </p>
+      </Card>
+    );
   };
 
   // Anonymous user view
@@ -130,6 +302,8 @@ export default function Profile() {
           open={showAuthModal} 
           onOpenChange={setShowAuthModal}
         />
+        
+        {renderDevTools()}
       </div>
     );
   }
@@ -320,6 +494,8 @@ export default function Profile() {
           </Button>
         </div>
       </Card>
+
+      {renderDevTools()}
     </div>
   );
 }

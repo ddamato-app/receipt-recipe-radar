@@ -23,6 +23,13 @@ type AuthContextType = {
   canAddItem: () => boolean;
   canGenerateRecipe: () => boolean;
   resetRecipeCount: () => void;
+  // Dev tools methods
+  devSetTier: (newTier: UserTier) => void;
+  devResetItemCount: () => void;
+  devResetRecipeCount: () => void;
+  devResetAllLimits: () => void;
+  devClearAllData: () => void;
+  devSimulateUsage: () => void;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -237,6 +244,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return 'none';
   };
 
+  // Developer tools methods
+  const devSetTier = (newTier: UserTier) => {
+    setTier(newTier);
+  };
+
+  const devResetItemCount = () => {
+    setItemCount(0);
+    localStorage.setItem('anonymous_item_count', '0');
+  };
+
+  const devResetRecipeCount = () => {
+    setRecipeCountToday(0);
+    localStorage.removeItem('anonymous_recipe_count');
+    localStorage.setItem('anonymous_recipe_date', new Date().toDateString());
+  };
+
+  const devResetAllLimits = () => {
+    devResetItemCount();
+    devResetRecipeCount();
+    localStorage.removeItem('shown_10_items_milestone');
+    localStorage.removeItem('shown_2_recipes_milestone');
+  };
+
+  const devClearAllData = () => {
+    localStorage.clear();
+    setItemCount(0);
+    setRecipeCountToday(0);
+  };
+
+  const devSimulateUsage = () => {
+    // Simulate 30 days of usage
+    setItemCount(47);
+    setRecipeCountToday(2);
+    localStorage.setItem('anonymous_item_count', '47');
+    localStorage.setItem('anonymous_recipe_count', '2');
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -257,6 +301,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         resetRecipeCount,
         migrateAnonymousData,
         checkProgressMilestone,
+        devSetTier,
+        devResetItemCount,
+        devResetRecipeCount,
+        devResetAllLimits,
+        devClearAllData,
+        devSimulateUsage,
       }}
     >
       {children}
