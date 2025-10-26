@@ -8,58 +8,125 @@ const Landing = () => {
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative min-h-screen flex items-center justify-center px-6 py-16 md:py-24 bg-gradient-to-br from-primary via-primary/90 to-blue-600">
-        <div className="w-[90%] max-w-4xl mx-auto text-center space-y-6 md:space-y-8 animate-fade-in">
-          {/* Main Heading */}
-          <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold text-white leading-[1.2]">
-            Stop Asking<br />'What's for Dinner?'
-          </h1>
-          
-          {/* Subheading */}
-          <p className="text-base md:text-xl max-w-3xl mx-auto leading-[1.6] text-white/90">
-            Your smart fridge companion that saves money, reduces waste, and always knows what to cook.
-          </p>
+      <section className="relative bg-background py-16 md:py-24 px-6">
+        <div className="w-[90%] max-w-7xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
+            {/* Left: Content */}
+            <div className="space-y-8 animate-fade-in">
+              {/* Main Heading */}
+              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-foreground leading-[1.1]">
+                Never Waste Food Again
+              </h1>
+              
+              {/* Subheading */}
+              <p className="text-xl md:text-2xl text-foreground/80 leading-[1.4] font-medium">
+                Track what's in your fridge. Get recipe ideas. Save money.
+              </p>
 
-          {/* CTA Buttons */}
-          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center pt-4">
-            <Button 
-              size="lg"
-              onClick={() => navigate("/")}
-              className="text-base md:text-lg px-6 md:px-8 py-5 md:py-6 h-auto bg-white text-primary hover:bg-white/90 hover:scale-105 transition-all duration-200 shadow-lg w-full sm:w-auto"
-            >
-              Start Free Trial
-            </Button>
-            <Button 
-              size="lg"
-              variant="outline"
-              className="text-base md:text-lg px-6 md:px-8 py-5 md:py-6 h-auto bg-transparent text-white border-2 border-white hover:bg-white/10 hover:scale-105 transition-all duration-200 w-full sm:w-auto"
-            >
-              <Play className="mr-2 h-5 w-5" />
-              Watch How It Works
-            </Button>
+              {/* Value Props */}
+              <div className="space-y-6">
+                {/* Prop 1 */}
+                <div className="flex gap-4 items-start">
+                  <div className="text-3xl flex-shrink-0">📦</div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground mb-1">
+                      Track Your Groceries
+                    </h3>
+                    <p className="text-base text-foreground/70 leading-relaxed">
+                      Scan receipts or add items manually. Always know what you have.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Prop 2 */}
+                <div className="flex gap-4 items-start">
+                  <div className="text-3xl flex-shrink-0">🍳</div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground mb-1">
+                      Smart Recipe Suggestions
+                    </h3>
+                    <p className="text-base text-foreground/70 leading-relaxed">
+                      Get recipes based on what's expiring soon. Use everything before it spoils.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Prop 3 */}
+                <div className="flex gap-4 items-start">
+                  <div className="text-3xl flex-shrink-0">💰</div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-foreground mb-1">
+                      See Your Savings
+                    </h3>
+                    <p className="text-base text-foreground/70 leading-relaxed">
+                      Track money saved vs wasted. Most families save $1,500+ per year.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* CTA Buttons */}
+              <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                <Button 
+                  size="lg"
+                  onClick={() => navigate("/")}
+                  className="text-base md:text-lg px-8 py-6 h-auto bg-primary text-primary-foreground hover:bg-primary/90 hover:scale-105 transition-all duration-200 shadow-lg w-full sm:w-auto"
+                >
+                  Start Free - No Credit Card
+                </Button>
+                <button 
+                  onClick={() => navigate("/")}
+                  className="text-base md:text-lg text-primary font-medium hover:text-primary/80 transition-colors flex items-center justify-center gap-2 w-full sm:w-auto"
+                >
+                  See How It Works →
+                </button>
+              </div>
+            </div>
+
+            {/* Right: App Screenshot/Mockup */}
+            <div className="animate-fade-in order-first md:order-last">
+              <div className="relative">
+                {/* Phone mockup frame */}
+                <div className="bg-gradient-to-br from-primary/5 to-blue-600/5 rounded-3xl p-8 shadow-2xl">
+                  <div className="bg-background rounded-2xl shadow-xl overflow-hidden border-8 border-foreground/10">
+                    <div className="aspect-[9/16] bg-muted flex flex-col items-center justify-center p-6 text-center">
+                      <div className="space-y-4">
+                        <p className="text-lg font-semibold text-foreground">📱 App Screenshot</p>
+                        <p className="text-sm text-muted-foreground">
+                          FreshTrack Home Screen<br />
+                          Showing fridge inventory<br />
+                          with expiration tracking
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Trust Signals */}
-          <div className="flex flex-wrap justify-center gap-6 text-white/90 text-sm md:text-base pt-4">
+          <div className="flex flex-wrap justify-center md:justify-start gap-6 text-foreground/70 text-sm mt-8 animate-fade-in">
             <span className="flex items-center gap-2">
-              <span className="text-lg">✓</span> Free to start
+              <span className="text-primary text-base">✓</span> Free to start
             </span>
             <span className="flex items-center gap-2">
-              <span className="text-lg">✓</span> No credit card needed
+              <span className="text-primary text-base">✓</span> No credit card needed
             </span>
             <span className="flex items-center gap-2">
-              <span className="text-lg">✓</span> Works on any device
+              <span className="text-primary text-base">✓</span> Works on any device
             </span>
           </div>
+        </div>
+      </section>
 
-          {/* Social Proof */}
-          <p className="text-white/80 text-lg pt-8">
-            Join 1,000+ families already reducing food waste
+      {/* Social Proof Bar */}
+      <section className="bg-muted/30 py-6 px-6">
+        <div className="w-[90%] max-w-7xl mx-auto text-center">
+          <p className="text-foreground/70 text-sm md:text-base">
+            Join 1,000+ families already reducing food waste and saving money
           </p>
         </div>
-
-        {/* Decorative gradient overlay */}
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-background/5 pointer-events-none" />
       </section>
 
       {/* The Story Section */}
