@@ -1,25 +1,22 @@
-import { Home, Package, PlusCircle, ChefHat, DollarSign, LogOut } from "lucide-react";
+import { Home, Package, PlusCircle, ChefHat, DollarSign, User } from "lucide-react";
 import { Link, useLocation } from "react-router-dom";
 import { cn } from "@/lib/utils";
-import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { AuthModal } from "./AuthModal";
 import { Button } from "@/components/ui/button";
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
-  const { toast } = useToast();
-
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    toast({ title: "Signed out successfully" });
-  };
+  const { user } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   const navItems = [
     { icon: Home, label: "Home", path: "/" },
     { icon: Package, label: "Fridge", path: "/inventory" },
     { icon: PlusCircle, label: "Add", path: "/add" },
     { icon: ChefHat, label: "Recipes", path: "/recipes" },
-    { icon: DollarSign, label: "Spending", path: "/spending" },
+    { icon: DollarSign, label: "Stats", path: "/spending" },
   ];
 
   return (
@@ -29,9 +26,28 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           <Package className="w-5 h-5 text-primary" />
           <h1 className="text-lg font-bold">FreshTrack</h1>
         </div>
-        <Button variant="ghost" size="sm" onClick={handleLogout}>
-          <LogOut className="w-4 h-4" />
-        </Button>
+        
+        {user ? (
+          <Link to="/profile">
+            <Button variant="ghost" size="sm" className="h-9 w-9 p-0 rounded-full">
+              <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                <span className="text-sm font-semibold text-primary">
+                  {user.email?.charAt(0).toUpperCase()}
+                </span>
+              </div>
+            </Button>
+          </Link>
+        ) : (
+          <Button 
+            variant="ghost" 
+            size="sm"
+            onClick={() => setShowAuthModal(true)}
+            className="text-sm"
+          >
+            <User className="w-4 h-4 mr-2" />
+            Sign In
+          </Button>
+        )}
       </header>
       
       <main className="container mx-auto px-4 py-6 max-w-2xl mt-14">
@@ -63,6 +79,11 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
           </div>
         </div>
       </nav>
+
+      <AuthModal 
+        open={showAuthModal} 
+        onOpenChange={setShowAuthModal}
+      />
     </div>
   );
 };
