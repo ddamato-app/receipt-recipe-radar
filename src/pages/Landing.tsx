@@ -134,14 +134,14 @@ const Landing = () => {
           </div>
 
           {/* Stat Cards */}
-          <div className="grid md:grid-cols-3 gap-6 md:gap-8 animate-fade-in">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in">
             {/* Card 1 */}
             <div className="bg-background rounded-2xl p-6 md:p-8 shadow-lg hover:shadow-xl transition-shadow duration-200 text-center space-y-3 md:space-y-4">
               <div className="text-5xl md:text-6xl mb-3 md:mb-4">💸</div>
-              <div className="text-3xl md:text-5xl font-bold text-primary">
+              <div className="text-4xl md:text-5xl font-bold text-primary">
                 $1,500-$3,000
               </div>
-              <p className="text-base md:text-lg text-foreground/70 leading-[1.6]">
+              <p className="text-sm md:text-base text-foreground/70 leading-[1.6]">
                 Wasted per year by the average family of four
               </p>
             </div>
@@ -149,10 +149,10 @@ const Landing = () => {
             {/* Card 2 */}
             <div className="bg-background rounded-2xl p-6 md:p-8 shadow-lg hover:shadow-xl transition-shadow duration-200 text-center space-y-3 md:space-y-4">
               <div className="text-5xl md:text-6xl mb-3 md:mb-4">🗑️</div>
-              <div className="text-3xl md:text-5xl font-bold text-primary">
+              <div className="text-4xl md:text-5xl font-bold text-primary">
                 325 pounds
               </div>
-              <p className="text-base md:text-lg text-foreground/70 leading-[1.6]">
+              <p className="text-sm md:text-base text-foreground/70 leading-[1.6]">
                 of food thrown away per person annually in the US
               </p>
             </div>
@@ -160,10 +160,10 @@ const Landing = () => {
             {/* Card 3 */}
             <div className="bg-background rounded-2xl p-6 md:p-8 shadow-lg hover:shadow-xl transition-shadow duration-200 text-center space-y-3 md:space-y-4">
               <div className="text-5xl md:text-6xl mb-3 md:mb-4">🌍</div>
-              <div className="text-3xl md:text-5xl font-bold text-primary">
+              <div className="text-4xl md:text-5xl font-bold text-primary">
                 40%
               </div>
-              <p className="text-base md:text-lg text-foreground/70 leading-[1.6]">
+              <p className="text-sm md:text-base text-foreground/70 leading-[1.6]">
                 of all food produced goes uneaten in America
               </p>
             </div>
