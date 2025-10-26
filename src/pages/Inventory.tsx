@@ -3,12 +3,13 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Loader2, Trash2, Plus, CheckCircle2, XCircle, X } from "lucide-react";
+import { Search, Loader2, Trash2, Plus, CheckCircle2, XCircle, X, AlertTriangle } from "lucide-react";
 import { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -94,6 +95,7 @@ export default function Inventory() {
   const isSwiping = useRef(false);
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { tier, itemCount, decrementItemCount } = useAuth();
 
   useEffect(() => {
     const hasSeenTutorial = localStorage.getItem('fridge-swipe-tutorial');
@@ -236,6 +238,12 @@ export default function Inventory() {
       if (error) throw error;
 
       setItems(items.filter(item => item.id !== id));
+      
+      // Decrement item count for anonymous users
+      if (tier === 'anonymous') {
+        decrementItemCount();
+      }
+      
       toast({
         title: "Item deleted",
         description: "Item removed from your fridge",
@@ -281,6 +289,10 @@ export default function Inventory() {
     }
     return filtered;
   };
+
+  const itemLimit = 15;
+  const isNearLimit = tier === 'anonymous' && itemCount >= 12;
+  const isAtLimit = tier === 'anonymous' && itemCount >= itemLimit;
 
   // Empty state when no items at all
   if (!loading && items.length === 0) {
@@ -330,8 +342,34 @@ export default function Inventory() {
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground mb-2">My Fridge</h1>
-        <p className="text-muted-foreground">Track your groceries and expiration dates</p>
+        <p className="text-muted-foreground">
+          {tier === 'anonymous' ? `${itemCount}/${itemLimit} Items` : `${items.length} Items`}
+        </p>
       </div>
+
+      {/* Near Limit Banner */}
+      {(isNearLimit || isAtLimit) && (
+        <Card className={`p-4 shadow-lg ${isAtLimit ? 'border-destructive bg-destructive/10' : 'border-warning bg-warning/10'}`}>
+          <div className="flex items-start gap-3">
+            <AlertTriangle className={`w-5 h-5 mt-0.5 flex-shrink-0 ${isAtLimit ? 'text-destructive' : 'text-warning'}`} />
+            <div className="flex-1">
+              <p className="text-sm font-semibold text-foreground">
+                {isAtLimit 
+                  ? `You're using ${itemCount} of ${itemLimit} free item slots.`
+                  : `You're using ${itemCount} of ${itemLimit} free item slots.`
+                }
+              </p>
+              <Button 
+                variant="link" 
+                className="h-auto p-0 text-primary font-semibold text-sm mt-1"
+                onClick={() => navigate('/profile')}
+              >
+                Upgrade to track unlimited items →
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* Search Bar */}
       <div className="relative">

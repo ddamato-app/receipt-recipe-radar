@@ -35,14 +35,34 @@ export default function Profile() {
             <div className="text-6xl mb-4">👋</div>
             <h2 className="text-2xl font-bold text-foreground">Sign in to unlock more features</h2>
             
-            <div className="space-y-2 text-left bg-muted/30 p-4 rounded-lg">
-              <p className="font-semibold text-foreground">Free Account includes:</p>
+            {/* Current Limits */}
+            <div className="space-y-3 text-left bg-muted/30 p-4 rounded-lg">
+              <p className="font-semibold text-foreground mb-2">Your current limits:</p>
+              <div className="space-y-2 text-sm">
+                <div className="flex items-start gap-2">
+                  <span className="text-foreground">📦</span>
+                  <span className="text-muted-foreground">Items: <strong className="text-destructive">15 max</strong></span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-foreground">🍳</span>
+                  <span className="text-muted-foreground">Recipes: <strong className="text-destructive">3 per day</strong></span>
+                </div>
+                <div className="flex items-start gap-2">
+                  <span className="text-foreground">💾</span>
+                  <span className="text-muted-foreground">Storage: <strong className="text-destructive">This device only</strong></span>
+                </div>
+              </div>
+            </div>
+
+            {/* Free Account Benefits */}
+            <div className="space-y-2 text-left bg-gradient-to-r from-success/10 to-primary/10 p-4 rounded-lg">
+              <p className="font-semibold text-foreground mb-2">With a free account:</p>
               <div className="space-y-1 text-sm text-muted-foreground">
                 <p>✓ Unlimited items in fridge</p>
-                <p>✓ Sync across all your devices</p>
                 <p>✓ Unlimited recipe suggestions</p>
-                <p>✓ Family sharing (up to 3 members)</p>
+                <p>✓ Sync across all your devices</p>
                 <p>✓ 3 months of history</p>
+                <p>✓ Family sharing (up to 3 members)</p>
                 <p>✓ Weekly email reports</p>
               </div>
             </div>
@@ -125,15 +145,22 @@ export default function Profile() {
           <>
             <Separator className="my-6" />
             <div className="bg-gradient-to-r from-warning/10 to-primary/10 p-4 rounded-lg">
-              <h3 className="font-semibold text-foreground mb-2 flex items-center gap-2">
+              <h3 className="font-semibold text-foreground mb-3 flex items-center gap-2">
                 <Crown className="w-4 h-4 text-warning" />
                 Upgrade to Pro
               </h3>
-              <p className="text-sm text-muted-foreground mb-3">
-                Unlock premium features for just $4.99/month
-              </p>
+              <div className="space-y-2 mb-3 text-sm">
+                <p className="text-muted-foreground">Upgrade to Pro for:</p>
+                <div className="space-y-1 text-sm">
+                  <p className="text-foreground">⭐ Receipt scanning <span className="text-muted-foreground">(save 10+ min/week)</span></p>
+                  <p className="text-foreground">⭐ AI meal planner</p>
+                  <p className="text-foreground">⭐ Advanced analytics</p>
+                  <p className="text-foreground">⭐ Unlimited history</p>
+                  <p className="text-foreground">⭐ Export data</p>
+                </div>
+              </div>
               <Button className="w-full bg-gradient-to-r from-warning to-primary text-white">
-                Start 7-Day Free Trial
+                Start 7-Day Free Trial - $4.99/month after
               </Button>
             </div>
           </>

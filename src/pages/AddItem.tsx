@@ -3,12 +3,15 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Camera, Upload, X, Check, Loader2, DollarSign, ChevronDown, ChevronUp } from "lucide-react";
+import { Camera, Upload, X, Check, Loader2, DollarSign, ChevronDown, ChevronUp, AlertTriangle, Crown } from "lucide-react";
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/contexts/AuthContext";
+import { UpgradePrompt } from "@/components/UpgradePrompt";
+import { Progress } from "@/components/ui/progress";
 
 type ScannedItem = {
   name: string;
@@ -24,11 +27,14 @@ export default function AddItem() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { tier, itemCount, canAddItem, incrementItemCount } = useAuth();
   const [isScanning, setIsScanning] = useState(false);
   const [scannedImage, setScannedImage] = useState<string | null>(null);
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [showPriceInput, setShowPriceInput] = useState(false);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [upgradeType, setUpgradeType] = useState<'item-limit' | 'pro-feature'>('item-limit');
   const [formData, setFormData] = useState({
     name: "",
     quantity: "1",
@@ -268,6 +274,13 @@ export default function AddItem() {
       return;
     }
 
+    // Check item limit for anonymous users
+    if (!canAddItem()) {
+      setUpgradeType('item-limit');
+      setShowUpgradePrompt(true);
+      return;
+    }
+
     setIsSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
@@ -293,6 +306,11 @@ export default function AddItem() {
         }]);
 
       if (error) throw error;
+
+      // Increment item count for anonymous users
+      if (tier === 'anonymous') {
+        incrementItemCount();
+      }
 
       toast({
         title: "Item Added!",
@@ -323,12 +341,50 @@ export default function AddItem() {
     }
   };
 
+  const itemLimit = 15;
+  const itemProgress = tier === 'anonymous' ? (itemCount / itemLimit) * 100 : 100;
+  const isNearLimit = tier === 'anonymous' && itemCount >= 12;
+  const isAtLimit = tier === 'anonymous' && itemCount >= itemLimit;
+
+  const handleProFeatureClick = () => {
+    if (tier !== 'pro') {
+      setUpgradeType('pro-feature');
+      setShowUpgradePrompt(true);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground mb-2">Add Items</h1>
         <p className="text-muted-foreground">Scan receipt or add items manually</p>
       </div>
+
+      {/* Item Limit Counter for Anonymous Users */}
+      {tier === 'anonymous' && (
+        <Card className={`p-4 shadow-lg ${isAtLimit ? 'border-destructive' : isNearLimit ? 'border-warning' : 'border-success'}`}>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-sm font-semibold text-foreground">Items in fridge:</span>
+              <span className={`text-lg font-bold ${isAtLimit ? 'text-destructive' : isNearLimit ? 'text-warning' : 'text-success'}`}>
+                {itemCount}/{itemLimit}
+              </span>
+            </div>
+            <Progress 
+              value={itemProgress} 
+              className={`h-2 ${isAtLimit ? '[&>div]:bg-destructive' : isNearLimit ? '[&>div]:bg-warning' : '[&>div]:bg-success'}`}
+            />
+            {isAtLimit && (
+              <div className="flex items-start gap-2 mt-2 p-2 bg-destructive/10 rounded-lg">
+                <AlertTriangle className="w-4 h-4 text-destructive mt-0.5 flex-shrink-0" />
+                <p className="text-xs text-destructive font-medium">
+                  ⚠️ Fridge limit reached. Create free account for unlimited items.
+                </p>
+              </div>
+            )}
+          </div>
+        </Card>
+      )}
 
       {/* Scan Options */}
       <div className="grid grid-cols-2 gap-3">
@@ -341,10 +397,16 @@ export default function AddItem() {
           className="hidden"
         />
         <Button 
-          className="h-24 bg-gradient-to-br from-primary to-success text-white shadow-md"
-          onClick={() => fileInputRef.current?.click()}
+          className="h-24 bg-gradient-to-br from-primary to-success text-white shadow-md relative"
+          onClick={tier === 'pro' ? () => fileInputRef.current?.click() : handleProFeatureClick}
           disabled={isScanning}
         >
+          {tier !== 'pro' && (
+            <Badge className="absolute top-2 right-2 bg-gradient-to-r from-warning to-primary text-white text-xs">
+              <Crown className="w-3 h-3 mr-1" />
+              Pro
+            </Badge>
+          )}
           <div className="flex flex-col items-center gap-2">
             {isScanning ? (
               <Loader2 className="w-8 h-8 animate-spin" />
@@ -358,10 +420,16 @@ export default function AddItem() {
         </Button>
         <Button 
           variant="outline"
-          className="h-24 shadow-md"
-          onClick={() => fileInputRef.current?.click()}
+          className="h-24 shadow-md relative"
+          onClick={tier === 'pro' ? () => fileInputRef.current?.click() : handleProFeatureClick}
           disabled={isScanning}
         >
+          {tier !== 'pro' && (
+            <Badge className="absolute top-2 right-2 bg-gradient-to-r from-warning to-primary text-white text-xs">
+              <Crown className="w-3 h-3 mr-1" />
+              Pro
+            </Badge>
+          )}
           <div className="flex flex-col items-center gap-2">
             <Upload className="w-8 h-8" />
             <span className="text-sm font-medium">Upload Image</span>
@@ -618,6 +686,14 @@ export default function AddItem() {
           </Button>
         </form>
       </Card>
+
+      {/* Upgrade Prompt */}
+      <UpgradePrompt 
+        open={showUpgradePrompt}
+        onOpenChange={setShowUpgradePrompt}
+        type={upgradeType}
+        featureName={upgradeType === 'pro-feature' ? 'Receipt Scanning' : undefined}
+      />
     </div>
   );
 }

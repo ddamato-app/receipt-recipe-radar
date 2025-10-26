@@ -2,10 +2,12 @@ import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Clock, Users, ChefHat, Sparkles, Loader2, Info } from "lucide-react";
+import { Clock, Users, ChefHat, Sparkles, Loader2, Info, Crown } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
+import { useAuth } from "@/contexts/AuthContext";
+import { UpgradePrompt } from "@/components/UpgradePrompt";
 import chickenStirFryImg from "@/assets/recipe-chicken-stir-fry.jpg";
 import spaghettiCarbonaraImg from "@/assets/recipe-spaghetti-carbonara.jpg";
 import caesarSaladImg from "@/assets/recipe-caesar-salad.jpg";
@@ -90,7 +92,9 @@ export default function Recipes() {
   const [fridgeItems, setFridgeItems] = useState<FridgeItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const { toast } = useToast();
+  const { tier, recipeCountToday, canGenerateRecipe, incrementRecipeCount } = useAuth();
 
   useEffect(() => {
     fetchFridgeItems();
@@ -128,6 +132,12 @@ export default function Recipes() {
       return;
     }
 
+    // Check recipe limit for anonymous users
+    if (!canGenerateRecipe()) {
+      setShowUpgradePrompt(true);
+      return;
+    }
+
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-recipes', {
@@ -142,6 +152,12 @@ export default function Recipes() {
           id: `${Date.now()}-${index}`,
         }));
         setRecipes(recipesWithIds);
+        
+        // Increment recipe count for anonymous users
+        if (tier === 'anonymous') {
+          incrementRecipeCount();
+        }
+        
         toast({
           title: "Recipes generated!",
           description: `Found ${recipesWithIds.length} delicious recipes for you.`,
@@ -164,12 +180,36 @@ export default function Recipes() {
     return Math.round((matchingIngredients.length / fridgeItems.length) * 100);
   };
 
+  const recipeLimit = 3;
+  
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground mb-2">Recipe Ideas</h1>
         <p className="text-muted-foreground">Based on what's in your fridge</p>
       </div>
+
+      {/* Recipe Counter for Anonymous Users */}
+      {tier === 'anonymous' && (
+        <Card className="p-4 bg-gradient-to-r from-secondary/10 to-warning/10 shadow-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-semibold text-foreground">Recipes today:</span>
+            <span className="text-lg font-bold text-foreground">
+              {recipeCountToday}/{recipeLimit}
+            </span>
+          </div>
+        </Card>
+      )}
+
+      {/* Unlimited Badge for Free/Pro Users */}
+      {tier !== 'anonymous' && (
+        <Card className="p-4 bg-gradient-to-r from-success/10 to-primary/10 shadow-lg">
+          <div className="flex items-center justify-center gap-2">
+            <Sparkles className="w-5 h-5 text-success" />
+            <span className="text-sm font-semibold text-foreground">Unlimited recipes ✨</span>
+          </div>
+        </Card>
+      )}
 
       {/* Fridge Items Count */}
       <Card className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10">
@@ -182,8 +222,14 @@ export default function Recipes() {
       <Button 
         onClick={generateRecipes}
         disabled={generating || fridgeItems.length === 0}
-        className="w-full h-14 bg-gradient-to-r from-secondary to-warning text-white shadow-md hover:shadow-lg transition-all"
+        className="w-full h-14 bg-gradient-to-r from-secondary to-warning text-white shadow-md hover:shadow-lg transition-all relative"
       >
+        {tier !== 'pro' && (
+          <Badge className="absolute top-2 right-2 bg-gradient-to-r from-warning to-primary text-white text-xs">
+            <Crown className="w-3 h-3 mr-1" />
+            Pro
+          </Badge>
+        )}
         {generating ? (
           <>
             <Loader2 className="w-5 h-5 mr-2 animate-spin" />
@@ -332,6 +378,13 @@ export default function Recipes() {
           })}
         </div>
       )}
+      
+      {/* Upgrade Prompt */}
+      <UpgradePrompt 
+        open={showUpgradePrompt}
+        onOpenChange={setShowUpgradePrompt}
+        type="recipe-limit"
+      />
     </div>
   );
 }

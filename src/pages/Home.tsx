@@ -1,11 +1,13 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Package, Calendar, TrendingUp, Camera, DollarSign, Info, X, Loader2 } from "lucide-react";
+import { AlertCircle, Package, Calendar, TrendingUp, Camera, DollarSign, Info, X, Loader2, Crown } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { UpgradePrompt } from "@/components/UpgradePrompt";
 import {
   Tooltip,
   TooltipContent,
@@ -26,8 +28,18 @@ export default function Home() {
   const [loading, setLoading] = useState(true);
   const [hasSampleData, setHasSampleData] = useState(false);
   const [clearingSampleData, setClearingSampleData] = useState(false);
+  const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { tier } = useAuth();
+
+  const handleProFeatureClick = () => {
+    if (tier !== 'pro') {
+      setShowUpgradePrompt(true);
+    } else {
+      navigate('/add');
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -366,14 +378,21 @@ export default function Home() {
 
       {/* Quick Actions */}
       <div className="grid grid-cols-2 gap-3">
-        <Link to="/add">
-          <Button className="w-full h-20 bg-gradient-to-br from-primary to-success text-white shadow-md hover:shadow-lg transition-all">
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-2xl">📸</span>
-              <span className="text-sm font-medium">Scan Receipt</span>
-            </div>
-          </Button>
-        </Link>
+        <Button 
+          onClick={handleProFeatureClick}
+          className="w-full h-20 bg-gradient-to-br from-primary to-success text-white shadow-md hover:shadow-lg transition-all relative"
+        >
+          {tier !== 'pro' && (
+            <Badge className="absolute top-2 right-2 bg-gradient-to-r from-warning to-primary text-white text-xs">
+              <Crown className="w-3 h-3 mr-1" />
+              Pro
+            </Badge>
+          )}
+          <div className="flex flex-col items-center gap-2">
+            <span className="text-2xl">📸</span>
+            <span className="text-sm font-medium">Scan Receipt</span>
+          </div>
+        </Button>
         <Link to="/recipes">
           <Button className="w-full h-20 bg-gradient-to-br from-secondary to-warning text-white shadow-md hover:shadow-lg transition-all">
             <div className="flex flex-col items-center gap-2">
@@ -436,6 +455,14 @@ export default function Home() {
           </div>
         )}
       </div>
+      
+      {/* Upgrade Prompt */}
+      <UpgradePrompt 
+        open={showUpgradePrompt}
+        onOpenChange={setShowUpgradePrompt}
+        type="pro-feature"
+        featureName="Receipt Scanning"
+      />
     </div>
   );
 }

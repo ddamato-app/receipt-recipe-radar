@@ -53,6 +53,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRecipeCountToday(parseInt(storedRecipeCount));
     }
 
+    // Check and reset recipe count at midnight
+    const now = new Date();
+    const tomorrow = new Date(now);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
+    const msUntilMidnight = tomorrow.getTime() - now.getTime();
+    
+    const midnightTimer = setTimeout(() => {
+      setRecipeCountToday(0);
+      localStorage.setItem('anonymous_recipe_date', new Date().toDateString());
+      localStorage.removeItem('anonymous_recipe_count');
+    }, msUntilMidnight);
+
+    return () => clearTimeout(midnightTimer);
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
