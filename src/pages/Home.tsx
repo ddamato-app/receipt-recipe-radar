@@ -1,7 +1,8 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Package, Calendar, TrendingUp, Camera, DollarSign, Info, X, Loader2, Crown, Apple, ArrowRight, ShoppingCart } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { ArrowRight, ShoppingCart, ChefHat, TrendingUp, X, Loader2, Crown, Sparkles, Heart, Target, Camera, Package, BarChart3 } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -9,17 +10,12 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { initializeAnonymousSampleData, clearAnonymousSampleData, getAnonymousItems } from "@/lib/sampleData";
-import { calculateConsumptionScore, getScoreColor, getScoreLabel } from "@/lib/healthScore";
+import { calculateConsumptionScore } from "@/lib/healthScore";
 import { InstallPrompt } from "@/components/InstallPrompt";
 import { StoreDetectionBanner } from "@/components/StoreDetectionBanner";
 import { checkNearbyStores, shouldCheckLocation, setLastLocationCheck } from "@/lib/locationService";
 import { showShoppingReminderNotification, shouldShowShoppingReminder, isNotificationEnabled } from "@/lib/notificationService";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { getGreeting, getTimeBasedEmoji, getContextualMessage, getStatusMessage, getMotivationalMessage, getHealthScoreMessage } from "@/lib/greetingHelper";
 import heroImage from "@/assets/hero-groceries.jpg";
 
 export default function Home() {
@@ -42,7 +38,7 @@ export default function Home() {
   const [showStoreBanner, setShowStoreBanner] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const { tier } = useAuth();
+  const { tier, user } = useAuth();
 
   const handleProFeatureClick = () => {
     if (tier !== 'pro') {
@@ -53,7 +49,6 @@ export default function Home() {
   };
 
   useEffect(() => {
-    // Initialize sample data for anonymous users
     if (tier === 'anonymous') {
       initializeAnonymousSampleData();
       const dismissed = localStorage.getItem('sampleDataDismissed');
@@ -64,11 +59,9 @@ export default function Home() {
   }, [tier]);
 
   const checkLocationAndNotify = async () => {
-    // Only check if Shopping Assistant is enabled
     const isEnabled = localStorage.getItem('shoppingAssistantEnabled') === 'true';
     if (!isEnabled) return;
 
-    // Don't check too frequently
     if (!shouldCheckLocation()) return;
 
     try {
@@ -76,14 +69,13 @@ export default function Home() {
       setLastLocationCheck();
 
       if (result.isNearStore && result.storeName) {
-        // Check if banner was dismissed recently for this store
         const dismissedKey = `storeBanner_${result.storeName}_dismissed`;
         const lastDismissed = localStorage.getItem(dismissedKey);
         
         if (lastDismissed) {
           const fourHours = 4 * 60 * 60 * 1000;
           if (Date.now() - parseInt(lastDismissed, 10) < fourHours) {
-            return; // Don't show banner if dismissed recently
+            return;
           }
         }
 
@@ -91,7 +83,6 @@ export default function Home() {
         setShowStoreBanner(true);
       }
 
-      // Check if we should show shopping reminder
       if (shouldShowShoppingReminder() && isNotificationEnabled()) {
         const savedList = localStorage.getItem('savedShoppingList');
         if (savedList) {
@@ -126,7 +117,6 @@ export default function Home() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Handle anonymous users
       if (!user || tier === 'anonymous') {
         const anonymousItems = getAnonymousItems();
         processAnonymousItems(anonymousItems);
@@ -140,7 +130,6 @@ export default function Home() {
       startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
       startOfWeek.setHours(0, 0, 0, 0);
 
-      // Fetch all items
       const { data: items, error } = await supabase
         .from('fridge_items')
         .select('*')
@@ -148,7 +137,6 @@ export default function Home() {
 
       if (error) throw error;
 
-      // Fetch consumed items this week for health score
       const { data: consumedItems, error: consumedError } = await supabase
         .from('fridge_items')
         .select('*')
@@ -158,16 +146,12 @@ export default function Home() {
 
       if (consumedError) throw consumedError;
 
-      // Calculate health score based on consumption
       const score = calculateConsumptionScore(consumedItems || []);
       setHealthScore(score.totalScore);
       setConsumedThisWeek(consumedItems?.length || 0);
 
-      // Check if user has any items
       if (!items || items.length === 0) {
-        // Insert sample data
         await insertSampleData(user.id);
-        // Refetch after inserting sample data
         const { data: newItems } = await supabase
           .from('fridge_items')
           .select('*')
@@ -253,7 +237,6 @@ export default function Home() {
   };
 
   const processItems = (items: any[], startOfMonth: Date) => {
-    // Calculate stats
     const activeItems = items.filter(item => item.status === 'active');
     const expiringSoonItems = activeItems.filter(item => {
       const days = getDaysLeft(item.expiry_date);
@@ -267,7 +250,6 @@ export default function Home() {
       expired: expiredItems.length,
     });
 
-    // Set expiring items for display
     setExpiringItems(
       expiringSoonItems
         .slice(0, 3)
@@ -278,7 +260,6 @@ export default function Home() {
         }))
     );
 
-    // Calculate money saved and wasted for current month
     const usedItems = items.filter(
       item => item.status === 'used' && 
       item.completed_at && 
@@ -333,11 +314,9 @@ export default function Home() {
       })
     );
 
-    // No money tracking for anonymous users
     setMoneySaved(0);
     setMoneyWasted(0);
 
-    // Check if they have sample data
     const hasSamples = items.some((item: any) => item.isSample);
     setHasSampleData(hasSamples);
   };
@@ -381,7 +360,6 @@ export default function Home() {
         description: "Ready to add your own items!",
       });
       
-      // Refresh the page data
       fetchData();
     } catch (error: any) {
       console.error('Error clearing sample data:', error);
@@ -399,8 +377,26 @@ export default function Home() {
     ? Math.round((moneySaved / (moneySaved + moneyWasted)) * 100) 
     : 0;
 
+  const healthInfo = getHealthScoreMessage(healthScore, consumedThisWeek);
+  const statusMessage = getStatusMessage(stats.totalItems, stats.expiringSoon, stats.expired);
+  const motivationalMsg = getMotivationalMessage(efficiency, moneySaved, moneyWasted);
+  const usedItemsCount = 0; // Will be calculated from actual data
+  const wastedItemsCount = 2; // Will be calculated from actual data
+
+  const getCategoryEmoji = (category: string): string => {
+    const emojis: Record<string, string> = {
+      'Dairy': '🥛',
+      'Meat': '🍗',
+      'Vegetables': '🥬',
+      'Fruits': '🍎',
+      'Grains': '🌾',
+      'Beverages': '🥤',
+    };
+    return emojis[category] || '📦';
+  };
+
   return (
-    <div className="space-y-6">
+    <div className="space-y-8 pb-4">
       {/* Store Detection Banner */}
       {showStoreBanner && detectedStore && (
         <StoreDetectionBanner 
@@ -409,41 +405,32 @@ export default function Home() {
         />
       )}
 
-      {/* Anonymous User Sample Data Banner */}
+      {/* Sample Data Banners */}
       {tier === 'anonymous' && showSampleBanner && hasSampleData && (
-        <Card className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 shadow-lg border-primary/20 animate-fade-in">
+        <Card className="p-4 bg-gradient-to-r from-blue-50 to-green-50 shadow-md border-blue-200 animate-fade-in">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1">
               <p className="font-semibold text-foreground mb-1">
-                👋 Sample data loaded to help you explore!
+                🎉 Sample data loaded - try the app!
               </p>
               <p className="text-sm text-muted-foreground">
-                Try out the app with these sample items
+                This is what FreshTrack looks like in action
               </p>
             </div>
             <div className="flex gap-2 flex-shrink-0">
-              <Button
-                onClick={handleClearSampleData}
-                size="sm"
-                variant="outline"
-              >
+              <Button onClick={handleClearSampleData} size="sm" variant="outline">
                 Clear Sample Data
               </Button>
-              <Button
-                onClick={handleKeepSampleData}
-                size="sm"
-                className="bg-primary"
-              >
-                Keep & Add More
+              <Button onClick={handleKeepSampleData} size="sm" className="bg-primary">
+                Add My Own Items
               </Button>
             </div>
           </div>
         </Card>
       )}
 
-      {/* Logged-in User Sample Data Banner */}
       {tier !== 'anonymous' && hasSampleData && (
-        <Card className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 shadow-lg border-primary/20 animate-fade-in">
+        <Card className="p-4 bg-gradient-to-r from-blue-50 to-green-50 shadow-md border-blue-200 animate-fade-in">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1">
               <p className="font-semibold text-foreground mb-1">
@@ -476,176 +463,221 @@ export default function Home() {
         </Card>
       )}
 
-      {/* Hero Section */}
-      <div className="relative rounded-2xl overflow-hidden shadow-lg">
+      {/* Warm Greeting Header */}
+      <div className="relative rounded-3xl overflow-hidden shadow-xl">
         <img 
           src={heroImage} 
           alt="Fresh groceries" 
-          className="w-full h-48 object-cover"
+          className="w-full h-56 object-cover opacity-90"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent flex flex-col justify-end p-6">
-          <h1 className="text-3xl font-bold text-white mb-2">FreshTrack</h1>
-          <p className="text-white/90 text-sm">Your smart fridge companion</p>
+        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex flex-col justify-end p-6">
+          <div className="animate-fade-in">
+            <h1 className="text-3xl font-medium text-white mb-1">
+              {getGreeting()}! {getTimeBasedEmoji()}
+            </h1>
+            <p className="text-white/90 text-base mb-1">
+              {stats.expiringSoon > 0 ? `Your fridge has ${stats.expiringSoon} ${stats.expiringSoon === 1 ? 'item' : 'items'} expiring soon` : "Your fridge is looking good"}
+            </p>
+            <p className="text-white/80 text-sm">
+              {getContextualMessage(stats.expiringSoon)}
+            </p>
+          </div>
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-3 gap-3">
-        <Card className="p-4 text-center shadow-md">
-          <Package className="w-6 h-6 mx-auto mb-2 text-primary" />
-          <div className="text-2xl font-bold text-foreground">{loading ? "-" : stats.totalItems}</div>
-          <div className="text-xs text-muted-foreground">Items</div>
-        </Card>
-        <Card className="p-4 text-center shadow-md">
-          <AlertCircle className="w-6 h-6 mx-auto mb-2 text-warning" />
-          <div className="text-2xl font-bold text-foreground">{loading ? "-" : stats.expiringSoon}</div>
-          <div className="text-xs text-muted-foreground">Expiring Soon</div>
-        </Card>
-        <Card className="p-4 text-center shadow-md">
-          <TrendingUp className="w-6 h-6 mx-auto mb-2 text-success" />
-          <div className="text-2xl font-bold text-foreground">{loading ? "-" : stats.totalItems - stats.expired}</div>
-          <div className="text-xs text-muted-foreground">Fresh</div>
-        </Card>
-      </div>
+      {/* Your Fridge at a Glance */}
+      <Card className="p-6 shadow-lg bg-gradient-to-br from-green-50/50 to-blue-50/50 border-green-200/50 animate-scale-in">
+        <h2 className="text-xl font-semibold text-foreground mb-4">Your Fridge at a Glance</h2>
+        
+        <div className="flex items-center justify-around py-4">
+          <div className="text-center">
+            <div className="text-4xl mb-2">🥬</div>
+            <div className="text-3xl font-bold text-foreground">{loading ? "-" : stats.totalItems}</div>
+            <div className="text-sm text-muted-foreground">Items</div>
+          </div>
+          
+          <Separator orientation="vertical" className="h-16" />
+          
+          <div className="text-center">
+            <div className="text-4xl mb-2">⏰</div>
+            <div className="text-3xl font-bold text-warning">{loading ? "-" : stats.expiringSoon}</div>
+            <div className="text-sm text-muted-foreground">Expiring</div>
+          </div>
+          
+          <Separator orientation="vertical" className="h-16" />
+          
+          <div className="text-center">
+            <div className="text-4xl mb-2">✨</div>
+            <div className="text-3xl font-bold text-success">{loading ? "-" : stats.totalItems - stats.expired}</div>
+            <div className="text-sm text-muted-foreground">Fresh</div>
+          </div>
+        </div>
+        
+        <Separator className="my-4" />
+        
+        <p className="text-center text-base font-medium text-foreground">
+          {statusMessage}
+        </p>
+      </Card>
 
-      {/* Health Score Widget */}
+      {/* Health Score Journey */}
       {tier !== 'anonymous' && (
         <Card 
-          className="p-5 shadow-lg bg-gradient-to-br from-green-500/10 to-primary/10 cursor-pointer hover:shadow-xl transition-all"
+          className="p-6 shadow-lg bg-gradient-to-br from-green-500/5 to-emerald-500/10 cursor-pointer hover:shadow-xl transition-all hover:-translate-y-1 duration-300 border-green-200/50 animate-fade-in"
           onClick={() => navigate('/health')}
         >
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Apple className="w-6 h-6 text-green-600" />
-              <h2 className="text-lg font-bold text-foreground">Your Health Score</h2>
-            </div>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+              🥗 Your Healthy Eating Journey
+            </h2>
             <ArrowRight className="w-5 h-5 text-muted-foreground" />
           </div>
           
-          <div className="flex items-center gap-4">
-            <div className="relative w-20 h-20 flex-shrink-0">
-              <svg className="transform -rotate-90 w-20 h-20">
-                <circle
-                  cx="40"
-                  cy="40"
-                  r="36"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  fill="transparent"
-                  className="text-muted"
-                />
-                <circle
-                  cx="40"
-                  cy="40"
-                  r="36"
-                  stroke="currentColor"
-                  strokeWidth="6"
-                  fill="transparent"
-                  strokeDasharray={`${2 * Math.PI * 36}`}
-                  strokeDashoffset={`${2 * Math.PI * 36 * (1 - healthScore / 100)}`}
-                  className={healthScore >= 75 ? 'text-success' : healthScore >= 50 ? 'text-warning' : 'text-destructive'}
-                  strokeLinecap="round"
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-2xl font-bold text-foreground">{healthScore}</span>
+          {consumedThisWeek === 0 ? (
+            <div className="text-center py-4">
+              <div className="text-5xl mb-3">🌱</div>
+              <p className="text-lg font-semibold text-foreground mb-2">Just getting started!</p>
+              <p className="text-sm text-muted-foreground mb-4">
+                Track what you eat to see your health score
+              </p>
+              <Button onClick={() => navigate('/inventory')} size="sm">
+                Track Your Items
+              </Button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-6">
+              <div className="relative w-24 h-24 flex-shrink-0">
+                <svg className="transform -rotate-90 w-24 h-24">
+                  <circle
+                    cx="48"
+                    cy="48"
+                    r="42"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    fill="transparent"
+                    className="text-muted/30"
+                  />
+                  <circle
+                    cx="48"
+                    cy="48"
+                    r="42"
+                    stroke="currentColor"
+                    strokeWidth="8"
+                    fill="transparent"
+                    strokeDasharray={`${2 * Math.PI * 42}`}
+                    strokeDashoffset={`${2 * Math.PI * 42 * (1 - healthScore / 100)}`}
+                    className={`transition-all duration-1000 ${healthScore >= 75 ? 'text-green-500' : healthScore >= 50 ? 'text-yellow-500' : 'text-orange-500'}`}
+                    strokeLinecap="round"
+                  />
+                </svg>
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <span className="text-3xl font-bold text-foreground">{healthScore}</span>
+                  <span className="text-xs text-muted-foreground">/ 100</span>
+                </div>
+              </div>
+              
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="text-2xl">{healthInfo.emoji}</span>
+                  <p className="text-lg font-semibold text-foreground">{healthInfo.title}</p>
+                </div>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Based on {consumedThisWeek} {consumedThisWeek === 1 ? 'item' : 'items'} consumed this week
+                </p>
+                <p className="text-sm text-primary font-medium">
+                  {healthInfo.message}
+                </p>
               </div>
             </div>
-            
-            <div className="flex-1">
-              <Badge className={`mb-2 ${getScoreColor(healthScore)}`}>
-                {getScoreLabel(healthScore)}
-              </Badge>
-              <p className="text-sm text-muted-foreground">
-                Based on {consumedThisWeek} items consumed this week
-              </p>
-              <p className="text-xs text-primary mt-1 font-medium">
-                Tap to see detailed analysis →
-              </p>
-            </div>
-          </div>
+          )}
         </Card>
       )}
 
-      {/* Money Saved Card */}
-      <Card className="p-5 shadow-lg bg-gradient-to-br from-success/10 to-primary/10">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <div className="text-2xl">💰</div>
-            <h2 className="text-lg font-bold text-foreground">This Month</h2>
+      {/* This Month's Impact */}
+      <Card className="p-6 shadow-lg bg-gradient-to-br from-amber-50/50 to-green-50/50 border-amber-200/50 animate-fade-in">
+        <h2 className="text-xl font-semibold text-foreground mb-4 flex items-center gap-2">
+          💰 This Month's Impact
+        </h2>
+        
+        <div className="grid grid-cols-2 gap-6 mb-4">
+          <div className="text-center p-4 bg-green-100/50 rounded-xl">
+            <p className="text-sm text-muted-foreground mb-2">Money Saved</p>
+            <p className="text-3xl font-bold text-green-600">${loading ? "-" : moneySaved.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{usedItemsCount} items used</p>
           </div>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                  <Info className="w-4 h-4 text-muted-foreground" />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent className="max-w-xs">
-                <p className="text-sm">
-                  <strong>Saved:</strong> Items marked as "used" before expiration<br/>
-                  <strong>Wasted:</strong> Items marked as "thrown out"<br/>
-                  <strong>Efficiency:</strong> Saved ÷ (Saved + Wasted) × 100%
-                </p>
-              </TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
+          
+          <div className="text-center p-4 bg-red-100/50 rounded-xl">
+            <p className="text-sm text-muted-foreground mb-2">Money Wasted</p>
+            <p className="text-3xl font-bold text-red-600">${loading ? "-" : moneyWasted.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{wastedItemsCount} items thrown out</p>
+          </div>
         </div>
         
-        <div className="grid grid-cols-2 gap-4 mb-3">
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Saved</p>
-            <div className="flex items-baseline gap-1">
-              <DollarSign className="w-4 h-4 text-success" />
-              <span className="text-xl font-bold text-foreground">
-                {loading ? "-" : moneySaved.toFixed(2)}
-              </span>
-            </div>
-          </div>
-          <div>
-            <p className="text-xs text-muted-foreground mb-1">Wasted</p>
-            <div className="flex items-baseline gap-1">
-              <DollarSign className="w-4 h-4 text-destructive" />
-              <span className="text-xl font-bold text-foreground">
-                {loading ? "-" : moneyWasted.toFixed(2)}
-              </span>
-            </div>
-          </div>
+        <div className="bg-gradient-to-r from-blue-50 to-purple-50 p-4 rounded-xl mb-4">
+          <p className="text-sm text-center font-medium text-foreground mb-2">
+            {motivationalMsg}
+          </p>
+          {moneySaved + moneyWasted === 0 && (
+            <p className="text-xs text-center text-muted-foreground">
+              Mark items as used to track savings
+            </p>
+          )}
         </div>
-
+        
         <div>
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-xs text-muted-foreground">Efficiency</p>
-            <span className="text-sm font-bold text-foreground">
-              {loading ? "-" : efficiency}%
-            </span>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-muted-foreground">Your efficiency:</p>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold text-foreground">{efficiency}%</span>
+              <Target className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Goal: 80%</span>
+            </div>
           </div>
-          <div className="w-full bg-muted rounded-full h-2 overflow-hidden">
+          <div className="w-full bg-muted rounded-full h-3 overflow-hidden">
             <div 
-              className="h-full bg-gradient-to-r from-success to-primary transition-all duration-300"
-              style={{ width: `${efficiency}%` }}
+              className="h-full bg-gradient-to-r from-green-400 to-green-600 transition-all duration-1000 ease-out"
+              style={{ width: `${Math.min(efficiency, 100)}%` }}
             />
           </div>
         </div>
       </Card>
 
-      {/* Quick Actions */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Primary Action Buttons */}
+      <div className="grid grid-cols-2 gap-4 animate-scale-in" style={{ animationDelay: '100ms' }}>
         <Button 
           onClick={handleProFeatureClick}
-          className="w-full h-20 bg-gradient-to-br from-primary to-success text-white shadow-md hover:shadow-lg transition-all relative"
+          className="h-32 bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 relative"
         >
           {tier !== 'pro' && (
-            <Badge className="absolute top-2 right-2 bg-gradient-to-r from-warning to-primary text-white text-xs">
+            <Badge className="absolute top-2 right-2 bg-yellow-500 text-white text-xs border-0">
               <Crown className="w-3 h-3 mr-1" />
               Pro
             </Badge>
           )}
-          <div className="flex flex-col items-center gap-2">
-            <span className="text-2xl">📸</span>
-            <span className="text-sm font-medium">Scan Receipt</span>
+          <div className="flex flex-col items-center gap-3">
+            <Camera className="w-8 h-8" />
+            <div className="text-center">
+              <p className="text-base font-semibold mb-1">Add Items</p>
+              <p className="text-xs opacity-90">Scan receipt or add manually</p>
+            </div>
           </div>
         </Button>
+        
+        <Link to="/recipes" className="block">
+          <Button className="w-full h-32 bg-gradient-to-br from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1">
+            <div className="flex flex-col items-center gap-3">
+              <ChefHat className="w-8 h-8" />
+              <div className="text-center">
+                <p className="text-base font-semibold mb-1">Find Recipes</p>
+                <p className="text-xs opacity-90">Use what you have tonight</p>
+              </div>
+            </div>
+          </Button>
+        </Link>
+      </div>
+
+      {/* Secondary Actions */}
+      <div className="grid grid-cols-2 gap-4">
         <Button
           onClick={() => {
             const isEnabled = localStorage.getItem('shoppingAssistantEnabled') === 'true';
@@ -655,69 +687,88 @@ export default function Home() {
               navigate('/shopping-assistant-setup');
             }
           }}
-          className="w-full h-20 bg-gradient-to-br from-blue-500 to-purple-500 text-white shadow-md hover:shadow-lg transition-all"
+          variant="outline"
+          className="h-20 bg-gradient-to-br from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border-purple-200"
         >
           <div className="flex flex-col items-center gap-2">
-            <ShoppingCart className="w-6 h-6" />
-            <span className="text-sm font-medium">Shopping Mode</span>
+            <ShoppingCart className="w-6 h-6 text-purple-600" />
+            <span className="text-sm font-medium text-foreground">Shopping Mode</span>
           </div>
         </Button>
-        <Link to="/recipes">
-          <Button className="w-full h-20 bg-gradient-to-br from-secondary to-warning text-white shadow-md hover:shadow-lg transition-all">
+        
+        <Link to="/spending">
+          <Button variant="outline" className="w-full h-20 bg-gradient-to-br from-blue-50 to-gray-50 hover:from-blue-100 hover:to-gray-100 border-blue-200">
             <div className="flex flex-col items-center gap-2">
-              <span className="text-2xl">🍳</span>
-              <span className="text-sm font-medium text-center leading-tight">Find Recipes Using These Items</span>
-            </div>
-          </Button>
-        </Link>
-        <Link to="/spending" className="col-span-1">
-          <Button className="w-full h-20 bg-gradient-to-br from-accent to-primary text-white shadow-md hover:shadow-lg transition-all">
-            <div className="flex flex-col items-center gap-2">
-              <span className="text-2xl">📊</span>
-              <span className="text-sm font-medium">View My Stats</span>
+              <BarChart3 className="w-6 h-6 text-blue-600" />
+              <span className="text-sm font-medium text-foreground">My Stats</span>
             </div>
           </Button>
         </Link>
       </div>
 
-      {/* Expiring Soon Section */}
-      <div>
+      {/* Expiring Items Section */}
+      <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-foreground">Expiring Soon</h2>
+          <h2 className="text-2xl font-semibold text-foreground">⏰ Items Needing Love</h2>
           <Link to="/inventory">
-            <Button variant="ghost" size="sm" className="text-primary">
-              View All
+            <Button variant="ghost" size="sm" className="text-primary hover:text-primary/80">
+              View All <ArrowRight className="w-4 h-4 ml-1" />
             </Button>
           </Link>
         </div>
         
+        {stats.expiringSoon > 0 && (
+          <p className="text-sm text-muted-foreground mb-4">
+            Use these soon so they don't go to waste!
+          </p>
+        )}
+        
         {loading ? (
-          <Card className="p-4 text-center">
+          <Card className="p-6 text-center">
             <p className="text-muted-foreground">Loading...</p>
           </Card>
         ) : expiringItems.length === 0 ? (
-          <Card className="p-8 text-center">
-            <TrendingUp className="w-12 h-12 mx-auto mb-3 text-success opacity-50" />
-            <p className="text-muted-foreground">All items are fresh!</p>
-            <p className="text-sm text-muted-foreground mt-1">
-              No items expiring in the next 5 days
+          <Card className="p-8 text-center bg-gradient-to-br from-green-50 to-emerald-50 border-green-200 shadow-md">
+            <div className="text-6xl mb-3">✨</div>
+            <p className="text-xl font-semibold text-foreground mb-2">All Clear!</p>
+            <p className="text-muted-foreground mb-4">
+              No items expiring soon. Your fridge is well-managed! 🎉
             </p>
+            <Button onClick={() => navigate('/inventory')} variant="outline">
+              Show All Items
+            </Button>
           </Card>
         ) : (
           <div className="space-y-3">
             {expiringItems.map((item, index) => (
-              <Card key={index} className="p-4 shadow-md hover:shadow-lg transition-all">
+              <Card 
+                key={index} 
+                className={`p-4 shadow-md hover:shadow-lg transition-all hover:-translate-y-1 duration-200 ${item.daysLeft <= 1 ? 'border-red-300 bg-red-50/50 animate-pulse-soft' : 'bg-white'}`}
+              >
                 <div className="flex items-center justify-between">
-                  <div>
-                    <h3 className="font-semibold text-foreground">{item.name}</h3>
-                    <p className="text-sm text-muted-foreground">{item.category}</p>
+                  <div className="flex items-center gap-3 flex-1">
+                    <div className="text-3xl">{getCategoryEmoji(item.category)}</div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-foreground text-lg">{item.name}</h3>
+                      <p className="text-sm text-muted-foreground">{item.category}</p>
+                    </div>
                   </div>
-                  <Badge 
-                    variant={item.daysLeft <= 1 ? "destructive" : "secondary"}
-                    className="font-semibold"
-                  >
-                    {item.daysLeft}d left
-                  </Badge>
+                  <div className="flex items-center gap-3">
+                    <Badge 
+                      variant={item.daysLeft <= 1 ? "destructive" : "secondary"}
+                      className="font-semibold text-sm px-3 py-1"
+                    >
+                      {item.daysLeft}d left
+                    </Badge>
+                    <Button 
+                      size="sm" 
+                      variant="ghost"
+                      onClick={() => navigate(`/recipes?ingredient=${encodeURIComponent(item.name)}`)}
+                      className="text-primary hover:text-primary/80"
+                    >
+                      Add to recipe →
+                    </Button>
+                  </div>
                 </div>
               </Card>
             ))}
@@ -725,7 +776,7 @@ export default function Home() {
         )}
       </div>
       
-      {/* Upgrade Prompt */}
+      {/* Modals */}
       <UpgradePrompt 
         open={showUpgradePrompt}
         onOpenChange={setShowUpgradePrompt}
@@ -733,7 +784,6 @@ export default function Home() {
         featureName="Receipt Scanning"
       />
 
-      {/* PWA Install Prompt */}
       <InstallPrompt />
     </div>
   );
