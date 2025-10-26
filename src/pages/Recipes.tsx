@@ -9,6 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { SAMPLE_RECIPES } from "@/lib/sampleRecipes";
+import { ProgressIncentive } from "@/components/ProgressIncentive";
+import { AuthModal } from "@/components/AuthModal";
 
 type Recipe = {
   id: string;
@@ -37,8 +39,10 @@ export default function Recipes() {
   const [loading, setLoading] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [showProgressIncentive, setShowProgressIncentive] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const { toast } = useToast();
-  const { tier, recipeCountToday, canGenerateRecipe, incrementRecipeCount } = useAuth();
+  const { tier, recipeCountToday, canGenerateRecipe, incrementRecipeCount, checkProgressMilestone } = useAuth();
 
   useEffect(() => {
     fetchFridgeItems();
@@ -100,6 +104,12 @@ export default function Recipes() {
         // Increment recipe count for anonymous users
         if (tier === 'anonymous') {
           incrementRecipeCount();
+          
+          // Check for progress milestone
+          const milestone = checkProgressMilestone();
+          if (milestone === '2-recipes') {
+            setShowProgressIncentive(true);
+          }
         }
         
         toast({
@@ -329,6 +339,21 @@ export default function Recipes() {
         open={showUpgradePrompt}
         onOpenChange={setShowUpgradePrompt}
         type="recipe-limit"
+      />
+
+      {/* Progress Incentive */}
+      <ProgressIncentive 
+        open={showProgressIncentive}
+        onOpenChange={setShowProgressIncentive}
+        type="2-recipes"
+        onCreateAccount={() => setShowAuthModal(true)}
+      />
+
+      {/* Auth Modal */}
+      <AuthModal 
+        open={showAuthModal}
+        onOpenChange={setShowAuthModal}
+        defaultTab="signup"
       />
     </div>
   );

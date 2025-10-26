@@ -2,16 +2,56 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Crown, LogOut, Mail, Calendar, Users, Bell, Download, Settings as SettingsIcon } from 'lucide-react';
+import { Crown, LogOut, Mail, Calendar, Users, Bell, Download, Settings as SettingsIcon, Package, ChefHat, DollarSign, TrendingUp } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { AuthModal } from '@/components/AuthModal';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 
 export default function Profile() {
-  const { user, tier, signOut } = useAuth();
+  const { user, tier, signOut, itemCount, recipeCountToday } = useAuth();
   const { toast } = useToast();
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [stats, setStats] = useState({
+    itemsThisMonth: 0,
+    recipesGenerated: 0,
+    moneySaved: 0,
+  });
+
+  useEffect(() => {
+    if (tier !== 'anonymous' && user) {
+      fetchUserStats();
+    }
+  }, [tier, user]);
+
+  const fetchUserStats = async () => {
+    try {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      // Fetch items created this month
+      const { data: items } = await supabase
+        .from('fridge_items')
+        .select('id, price, status, completed_at')
+        .eq('user_id', user?.id)
+        .gte('created_at', startOfMonth.toISOString());
+
+      // Calculate stats
+      const itemsThisMonth = items?.length || 0;
+      const usedItems = items?.filter(item => item.status === 'used' && item.completed_at) || [];
+      const moneySaved = usedItems.reduce((acc, item) => acc + (Number(item.price) || 0), 0);
+
+      setStats({
+        itemsThisMonth,
+        recipesGenerated: recipeCountToday, // We'd need to track this in DB for accurate count
+        moneySaved,
+      });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -98,12 +138,78 @@ export default function Profile() {
   const isPro = tier === 'pro';
   const memberSince = user?.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' }) : 'Recently';
 
+  // Get tier badge
+  const getTierBadge = () => {
+    if (isPro) {
+      return (
+        <Badge className="bg-gradient-to-r from-warning to-primary text-white text-base px-4 py-1">
+          <Crown className="w-4 h-4 mr-2" />
+          ⭐ Pro Member
+        </Badge>
+      );
+    }
+    return (
+      <Badge className="bg-gradient-to-r from-success to-primary text-white text-base px-4 py-1">
+        ✨ FreshTrack Member
+      </Badge>
+    );
+  };
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-3xl font-bold text-foreground mb-2">Account</h1>
         <p className="text-muted-foreground">Manage your profile and preferences</p>
       </div>
+
+      {/* Tier Badge */}
+      <div className="flex justify-center">
+        {getTierBadge()}
+      </div>
+
+      {/* Stats Card */}
+      <Card className="p-6 shadow-lg bg-gradient-to-br from-primary/5 to-secondary/5">
+        <h3 className="text-lg font-bold text-foreground mb-4 flex items-center gap-2">
+          <TrendingUp className="w-5 h-5" />
+          Your Impact
+        </h3>
+        <div className="grid grid-cols-2 gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Package className="w-4 h-4" />
+              <span>Items tracked</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{stats.itemsThisMonth}</p>
+            <p className="text-xs text-muted-foreground">this month</p>
+          </div>
+          
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <ChefHat className="w-4 h-4" />
+              <span>Recipes generated</span>
+            </div>
+            <p className="text-2xl font-bold text-foreground">{stats.recipesGenerated}</p>
+            <p className="text-xs text-muted-foreground">today</p>
+          </div>
+          
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <DollarSign className="w-4 h-4" />
+              <span>Money saved</span>
+            </div>
+            <p className="text-2xl font-bold text-success">${stats.moneySaved.toFixed(2)}</p>
+            <p className="text-xs text-muted-foreground">this month</p>
+          </div>
+          
+          <div className="space-y-1">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
+              <Calendar className="w-4 h-4" />
+              <span>Member since</span>
+            </div>
+            <p className="text-lg font-bold text-foreground">{memberSince}</p>
+          </div>
+        </div>
+      </Card>
 
       {/* Account Info Card */}
       <Card className="p-6 shadow-lg">
@@ -116,16 +222,6 @@ export default function Profile() {
             </div>
             <div>
               <h2 className="text-xl font-bold text-foreground">{user?.email}</h2>
-              <div className="flex items-center gap-2 mt-1">
-                {isPro ? (
-                  <Badge className="bg-gradient-to-r from-warning to-primary text-white">
-                    <Crown className="w-3 h-3 mr-1" />
-                    Pro Member
-                  </Badge>
-                ) : (
-                  <Badge variant="secondary">Free Account</Badge>
-                )}
-              </div>
             </div>
           </div>
         </div>

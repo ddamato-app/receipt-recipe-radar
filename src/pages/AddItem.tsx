@@ -12,6 +12,8 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { Progress } from "@/components/ui/progress";
+import { ProgressIncentive } from "@/components/ProgressIncentive";
+import { AuthModal } from "@/components/AuthModal";
 
 type ScannedItem = {
   name: string;
@@ -27,7 +29,7 @@ export default function AddItem() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const { tier, itemCount, canAddItem, incrementItemCount } = useAuth();
+  const { tier, itemCount, canAddItem, incrementItemCount, checkProgressMilestone } = useAuth();
   const [isScanning, setIsScanning] = useState(false);
   const [scannedImage, setScannedImage] = useState<string | null>(null);
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);
@@ -35,6 +37,9 @@ export default function AddItem() {
   const [showPriceInput, setShowPriceInput] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const [upgradeType, setUpgradeType] = useState<'item-limit' | 'pro-feature'>('item-limit');
+  const [showProgressIncentive, setShowProgressIncentive] = useState(false);
+  const [progressType, setProgressType] = useState<'10-items' | '2-recipes'>('10-items');
+  const [showAuthModal, setShowAuthModal] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     quantity: "1",
@@ -310,6 +315,13 @@ export default function AddItem() {
       // Increment item count for anonymous users
       if (tier === 'anonymous') {
         incrementItemCount();
+        
+        // Check for progress milestone
+        const milestone = checkProgressMilestone();
+        if (milestone === '10-items') {
+          setProgressType('10-items');
+          setShowProgressIncentive(true);
+        }
       }
 
       toast({
@@ -693,6 +705,21 @@ export default function AddItem() {
         onOpenChange={setShowUpgradePrompt}
         type={upgradeType}
         featureName={upgradeType === 'pro-feature' ? 'Receipt Scanning' : undefined}
+      />
+
+      {/* Progress Incentive */}
+      <ProgressIncentive 
+        open={showProgressIncentive}
+        onOpenChange={setShowProgressIncentive}
+        type={progressType}
+        onCreateAccount={() => setShowAuthModal(true)}
+      />
+
+      {/* Auth Modal */}
+      <AuthModal 
+        open={showAuthModal}
+        onOpenChange={setShowAuthModal}
+        defaultTab="signup"
       />
     </div>
   );

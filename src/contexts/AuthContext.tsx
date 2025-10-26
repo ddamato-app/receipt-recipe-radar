@@ -19,6 +19,7 @@ type AuthContextType = {
   incrementItemCount: () => void;
   decrementItemCount: () => void;
   incrementRecipeCount: () => void;
+  checkProgressMilestone: () => 'none' | '10-items' | '2-recipes';
   canAddItem: () => boolean;
   canGenerateRecipe: () => boolean;
   resetRecipeCount: () => void;
@@ -68,8 +69,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('anonymous_recipe_count');
     }, msUntilMidnight);
 
-    return () => clearTimeout(midnightTimer);
-
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -97,7 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      clearTimeout(midnightTimer);
+      subscription.unsubscribe();
+    };
   }, []);
 
   const signIn = async (email: string, password: string) => {
@@ -215,6 +217,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
+  const checkProgressMilestone = (): 'none' | '10-items' | '2-recipes' => {
+    if (tier !== 'anonymous') return 'none';
+    
+    // Check if we just hit 10 items
+    const hasShown10Items = localStorage.getItem('shown_10_items_milestone');
+    if (itemCount === 10 && !hasShown10Items) {
+      localStorage.setItem('shown_10_items_milestone', 'true');
+      return '10-items';
+    }
+    
+    // Check if we just used 2nd recipe
+    const hasShown2Recipes = localStorage.getItem('shown_2_recipes_milestone');
+    if (recipeCountToday === 2 && !hasShown2Recipes) {
+      localStorage.setItem('shown_2_recipes_milestone', 'true');
+      return '2-recipes';
+    }
+    
+    return 'none';
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -234,6 +256,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         canGenerateRecipe,
         resetRecipeCount,
         migrateAnonymousData,
+        checkProgressMilestone,
       }}
     >
       {children}
