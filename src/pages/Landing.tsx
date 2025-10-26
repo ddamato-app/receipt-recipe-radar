@@ -175,6 +175,118 @@ const Landing = () => {
           </p>
         </div>
       </section>
+
+      {/* Features Section */}
+      <section className="py-20 md:py-32 px-4 bg-background">
+        <div className="max-w-7xl mx-auto space-y-20">
+          {/* Header */}
+          <div className="text-center space-y-4 animate-fade-in">
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground">
+              Meet Your Smart Fridge Companion
+            </h2>
+          </div>
+
+          {/* Feature 1 - Text Left, Image Right */}
+          <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
+            <div className="space-y-6 animate-fade-in">
+              <div className="text-5xl mb-4">📸</div>
+              <h3 className="text-3xl md:text-4xl font-bold text-foreground">
+                Never Forget What You Have
+              </h3>
+              <p className="text-lg text-foreground/80 leading-relaxed">
+                Forward your grocery receipt or add items manually. FreshTrack tracks everything in your fridge.
+              </p>
+              <ul className="space-y-3 text-foreground/70">
+                <li className="flex items-start gap-3">
+                  <span className="text-primary mt-1">✓</span>
+                  <span>Scan receipts automatically</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-primary mt-1">✓</span>
+                  <span>Track expiration dates</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-primary mt-1">✓</span>
+                  <span>See what&apos;s expiring soon</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-primary mt-1">✓</span>
+                  <span>Get reminded before items go bad</span>
+                </li>
+              </ul>
+            </div>
+            <div className="animate-fade-in">
+              <div className="aspect-[4/3] rounded-2xl bg-muted flex items-center justify-center shadow-lg">
+                <p className="text-muted-foreground">Screenshot: Fridge inventory</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Feature 2 - Image Left, Text Right */}
+          <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
+            <div className="order-2 md:order-1 animate-fade-in">
+              <div className="aspect-[4/3] rounded-2xl bg-muted flex items-center justify-center shadow-lg">
+                <p className="text-muted-foreground">Screenshot: Recipe suggestions</p>
+              </div>
+            </div>
+            <div className="order-1 md:order-2 space-y-6 animate-fade-in">
+              <div className="text-5xl mb-4">🍳</div>
+              <h3 className="text-3xl md:text-4xl font-bold text-foreground">
+                Know What to Cook Tonight
+              </h3>
+              <p className="text-lg text-foreground/80 leading-relaxed">
+                Get instant recipe suggestions using exactly what you have.
+              </p>
+              <ul className="space-y-3 text-foreground/70">
+                <li className="flex items-start gap-3">
+                  <span className="text-primary mt-1">✓</span>
+                  <span>Recipes using your ingredients</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-primary mt-1">✓</span>
+                  <span>Filter by time & dietary needs</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-primary mt-1">✓</span>
+                  <span>Use up expiring items first</span>
+                </li>
+              </ul>
+            </div>
+          </div>
+
+          {/* Feature 3 - Text Left, Image Right */}
+          <div className="grid md:grid-cols-2 gap-12 md:gap-16 items-center">
+            <div className="space-y-6 animate-fade-in">
+              <div className="text-5xl mb-4">💰</div>
+              <h3 className="text-3xl md:text-4xl font-bold text-foreground">
+                See Your Savings Add Up
+              </h3>
+              <p className="text-lg text-foreground/80 leading-relaxed">
+                Track every dollar saved by using food before it expires.
+              </p>
+              <ul className="space-y-3 text-foreground/70">
+                <li className="flex items-start gap-3">
+                  <span className="text-primary mt-1">✓</span>
+                  <span>Money saved vs wasted</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-primary mt-1">✓</span>
+                  <span>Monthly spending insights</span>
+                </li>
+                <li className="flex items-start gap-3">
+                  <span className="text-primary mt-1">✓</span>
+                  <span>Waste reduction trends</span>
+                </li>
+              </ul>
+            </div>
+            <div className="animate-fade-in">
+              <div className="aspect-[4/3] rounded-2xl bg-muted flex items-center justify-center shadow-lg">
+                <p className="text-muted-foreground">Screenshot: Savings dashboard</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 };
