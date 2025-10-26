@@ -119,6 +119,62 @@ const Landing = () => {
           </div>
         </div>
       </section>
+
+      {/* Statistics Section */}
+      <section className="py-20 md:py-32 px-4 bg-muted/30">
+        <div className="max-w-7xl mx-auto space-y-12">
+          {/* Header */}
+          <div className="text-center space-y-4 animate-fade-in">
+            <h2 className="text-4xl md:text-5xl font-bold text-foreground">
+              The Hidden Cost of Forgotten Food
+            </h2>
+            <p className="text-xl text-foreground/70 max-w-3xl mx-auto">
+              Food waste isn&apos;t just an environmental problem—it&apos;s draining your wallet
+            </p>
+          </div>
+
+          {/* Stat Cards */}
+          <div className="grid md:grid-cols-3 gap-8 animate-fade-in">
+            {/* Card 1 */}
+            <div className="bg-background rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-200 text-center space-y-4">
+              <div className="text-6xl mb-4">💸</div>
+              <div className="text-4xl md:text-5xl font-bold text-primary">
+                $1,500-$3,000
+              </div>
+              <p className="text-lg text-foreground/70 leading-relaxed">
+                Wasted per year by the average family of four
+              </p>
+            </div>
+
+            {/* Card 2 */}
+            <div className="bg-background rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-200 text-center space-y-4">
+              <div className="text-6xl mb-4">🗑️</div>
+              <div className="text-4xl md:text-5xl font-bold text-primary">
+                325 pounds
+              </div>
+              <p className="text-lg text-foreground/70 leading-relaxed">
+                of food thrown away per person annually in the US
+              </p>
+            </div>
+
+            {/* Card 3 */}
+            <div className="bg-background rounded-2xl p-8 shadow-lg hover:shadow-xl transition-shadow duration-200 text-center space-y-4">
+              <div className="text-6xl mb-4">🌍</div>
+              <div className="text-4xl md:text-5xl font-bold text-primary">
+                40%
+              </div>
+              <p className="text-lg text-foreground/70 leading-relaxed">
+                of all food produced goes uneaten in America
+              </p>
+            </div>
+          </div>
+
+          {/* Bottom Text */}
+          <p className="text-center text-xl text-foreground/80 max-w-2xl mx-auto pt-8 animate-fade-in">
+            That&apos;s like throwing away one out of every five grocery bags you buy.
+          </p>
+        </div>
+      </section>
     </div>
   );
 };
