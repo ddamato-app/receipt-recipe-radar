@@ -14,8 +14,8 @@ serve(async (req) => {
   }
 
   try {
-    const { ingredients } = await req.json();
-    console.log('Generating recipes for ingredients:', ingredients);
+    const { ingredients, category } = await req.json();
+    console.log('Generating recipes for ingredients:', ingredients, 'Category:', category);
 
     if (!ingredients || ingredients.length === 0) {
       return new Response(
@@ -28,7 +28,18 @@ serve(async (req) => {
       `${item.name} (${item.quantity} ${item.unit}, expires: ${item.expiry_date || 'N/A'})`
     ).join('\n');
 
-    const prompt = `You are a creative chef assistant. Based on the following ingredients available in the user's fridge, suggest 3-5 delicious recipes that can be made primarily with these ingredients.
+    const categoryInstructions = {
+      quick: 'Focus on recipes that can be prepared in 30 minutes or less. Prioritize simple, fast cooking methods.',
+      healthy: 'Focus on nutritious, balanced recipes with plenty of vegetables, lean proteins, and whole grains. Avoid heavy, fried, or overly processed ingredients.',
+      comfort: 'Focus on hearty, satisfying comfort food recipes that are warm and filling. Think classic dishes that bring comfort.',
+      vegetarian: 'Focus exclusively on vegetarian recipes with no meat, poultry, or seafood. Use plant-based proteins and vegetables.'
+    };
+
+    const categoryPrompt = category && categoryInstructions[category as keyof typeof categoryInstructions]
+      ? `\n\nIMPORTANT: ${categoryInstructions[category as keyof typeof categoryInstructions]}`
+      : '';
+
+    const prompt = `You are a creative chef assistant. Based on the following ingredients available in the user's fridge, suggest 3-5 delicious recipes that can be made primarily with these ingredients.${categoryPrompt}
 
 Available Ingredients:
 ${ingredientList}

@@ -87,7 +87,7 @@ export default function Recipes() {
     }
   };
 
-  const generateRecipes = async () => {
+  const generateRecipes = async (category?: string) => {
     if (fridgeItems.length === 0) {
       toast({
         title: "No ingredients",
@@ -106,7 +106,10 @@ export default function Recipes() {
     setGenerating(true);
     try {
       const { data, error } = await supabase.functions.invoke('generate-recipes', {
-        body: { ingredients: fridgeItems }
+        body: { 
+          ingredients: fridgeItems,
+          category: category 
+        }
       });
 
       if (error) throw error;
@@ -330,7 +333,7 @@ export default function Recipes() {
           </div>
 
           <Button 
-            onClick={generateRecipes}
+            onClick={() => generateRecipes()}
             disabled={generating || fridgeItems.length === 0}
             className="w-full h-16 bg-gradient-to-r from-success to-primary text-white shadow-lg hover:shadow-xl transition-all text-lg font-semibold"
           >
@@ -366,7 +369,8 @@ export default function Recipes() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setQuickFilter("quick")}
+                onClick={() => generateRecipes("quick")}
+                disabled={generating || fridgeItems.length === 0}
                 className="text-xs hover:bg-primary/10"
               >
                 <Flame className="w-4 h-4 mr-1" />
@@ -375,7 +379,8 @@ export default function Recipes() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setQuickFilter("healthy")}
+                onClick={() => generateRecipes("healthy")}
+                disabled={generating || fridgeItems.length === 0}
                 className="text-xs hover:bg-success/10"
               >
                 <Salad className="w-4 h-4 mr-1" />
@@ -384,7 +389,8 @@ export default function Recipes() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setQuickFilter("comfort")}
+                onClick={() => generateRecipes("comfort")}
+                disabled={generating || fridgeItems.length === 0}
                 className="text-xs hover:bg-warning/10"
               >
                 <Pizza className="w-4 h-4 mr-1" />
@@ -393,7 +399,8 @@ export default function Recipes() {
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setQuickFilter("vegetarian")}
+                onClick={() => generateRecipes("vegetarian")}
+                disabled={generating || fridgeItems.length === 0}
                 className="text-xs hover:bg-secondary/10"
               >
                 <Leaf className="w-4 h-4 mr-1" />
