@@ -3,8 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search, Loader2, Trash2 } from "lucide-react";
+import { Search, Loader2, Trash2, Plus } from "lucide-react";
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,6 +26,7 @@ export default function Inventory() {
   const [loading, setLoading] = useState(true);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const { toast } = useToast();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchItems();
@@ -107,6 +109,50 @@ export default function Inventory() {
     }
     return filtered;
   };
+
+  // Empty state when no items at all
+  if (!loading && items.length === 0) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-3xl font-bold text-foreground mb-2">My Fridge</h1>
+          <p className="text-muted-foreground">Track your groceries and expiration dates</p>
+        </div>
+
+        <Card className="p-8 text-center shadow-lg">
+          <div className="max-w-md mx-auto space-y-6">
+            <div className="text-5xl mb-4">👋</div>
+            <h2 className="text-2xl font-bold text-foreground">Welcome to FreshTrack!</h2>
+            <p className="text-foreground leading-relaxed">
+              Let's add your first items to get started.
+            </p>
+            
+            <div className="text-left space-y-2 bg-muted/30 p-4 rounded-lg">
+              <p className="font-semibold text-foreground mb-2">Tap the + button below to:</p>
+              <div className="space-y-1 text-sm text-muted-foreground">
+                <p>✓ Scan a receipt (coming soon)</p>
+                <p>✓ Add items manually</p>
+                <p>✓ Quick-add common items</p>
+              </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground italic">
+              Start with 5-10 items and we'll help you reduce waste!
+            </p>
+
+            <Button 
+              onClick={() => navigate('/add')}
+              className="w-full bg-gradient-to-r from-primary to-success text-white shadow-md hover:shadow-lg transition-all"
+              size="lg"
+            >
+              <Plus className="w-5 h-5 mr-2" />
+              Get Started
+            </Button>
+          </div>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
