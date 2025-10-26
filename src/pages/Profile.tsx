@@ -2,7 +2,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Crown, LogOut, Mail, Calendar, Users, Bell, Download, Settings as SettingsIcon, Package, ChefHat, DollarSign, TrendingUp, Receipt, Apple } from 'lucide-react';
+import { Crown, LogOut, Mail, Calendar, Users, Bell, Download, Settings as SettingsIcon, Package, ChefHat, DollarSign, TrendingUp, Receipt, Apple, ShoppingCart } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getStoredReceipts } from '@/lib/receiptData';
 import { useAuth } from '@/contexts/AuthContext';
@@ -480,6 +480,26 @@ export default function Profile() {
           >
             <Apple className="w-4 h-4 mr-2" />
             Health Score
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start" 
+            size="lg"
+            onClick={() => {
+              const isEnabled = localStorage.getItem('shoppingAssistantEnabled') === 'true';
+              if (isEnabled) {
+                navigate('/shopping-mode');
+              } else {
+                navigate('/shopping-assistant-setup');
+              }
+            }}
+          >
+            <ShoppingCart className="w-4 h-4 mr-2" />
+            Shopping Assistant
+            {localStorage.getItem('shoppingAssistantEnabled') !== 'true' && (
+              <Badge variant="outline" className="ml-auto text-xs">Not enabled</Badge>
+            )}
           </Button>
           
           <Button 

@@ -1,7 +1,7 @@
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { AlertCircle, Package, Calendar, TrendingUp, Camera, DollarSign, Info, X, Loader2, Crown, Apple, ArrowRight } from "lucide-react";
+import { AlertCircle, Package, Calendar, TrendingUp, Camera, DollarSign, Info, X, Loader2, Crown, Apple, ArrowRight, ShoppingCart } from "lucide-react";
 import { Link, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -580,6 +580,22 @@ export default function Home() {
             <span className="text-sm font-medium">Scan Receipt</span>
           </div>
         </Button>
+        <Button
+          onClick={() => {
+            const isEnabled = localStorage.getItem('shoppingAssistantEnabled') === 'true';
+            if (isEnabled) {
+              navigate('/shopping-mode');
+            } else {
+              navigate('/shopping-assistant-setup');
+            }
+          }}
+          className="w-full h-20 bg-gradient-to-br from-blue-500 to-purple-500 text-white shadow-md hover:shadow-lg transition-all"
+        >
+          <div className="flex flex-col items-center gap-2">
+            <ShoppingCart className="w-6 h-6" />
+            <span className="text-sm font-medium">Shopping Mode</span>
+          </div>
+        </Button>
         <Link to="/recipes">
           <Button className="w-full h-20 bg-gradient-to-br from-secondary to-warning text-white shadow-md hover:shadow-lg transition-all">
             <div className="flex flex-col items-center gap-2">
@@ -588,7 +604,7 @@ export default function Home() {
             </div>
           </Button>
         </Link>
-        <Link to="/spending" className="col-span-2">
+        <Link to="/spending" className="col-span-1">
           <Button className="w-full h-20 bg-gradient-to-br from-accent to-primary text-white shadow-md hover:shadow-lg transition-all">
             <div className="flex flex-col items-center gap-2">
               <span className="text-2xl">📊</span>
