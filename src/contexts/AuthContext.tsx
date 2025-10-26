@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
+import { getAnonymousItems } from '@/lib/sampleData';
 
 type UserTier = 'anonymous' | 'free' | 'pro';
 
@@ -12,8 +13,9 @@ type AuthContextType = {
   recipeCountToday: number;
   isLoading: boolean;
   signIn: (email: string, password: string) => Promise<{ error: any }>;
-  signUp: (email: string, password: string) => Promise<{ error: any }>;
+  signUp: (email: string, password: string, addSampleData?: boolean) => Promise<{ error: any }>;
   signOut: () => Promise<void>;
+  migrateAnonymousData: () => Promise<number>;
   incrementItemCount: () => void;
   decrementItemCount: () => void;
   incrementRecipeCount: () => void;
@@ -106,17 +108,59 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
-  const signUp = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, addSampleData = false) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { error } = await supabase.auth.signUp({
+    const { data, error } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        emailRedirectTo: redirectUrl
+        emailRedirectTo: redirectUrl,
+        data: {
+          addSampleData
+        }
       }
     });
+    
     return { error };
+  };
+
+  const migrateAnonymousData = async (): Promise<number> => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return 0;
+
+    const anonymousItems = getAnonymousItems();
+    if (anonymousItems.length === 0) return 0;
+
+    try {
+      const itemsToInsert = anonymousItems.map((item: any) => ({
+        user_id: user.id,
+        name: item.name,
+        quantity: item.quantity,
+        unit: item.unit,
+        category: item.category,
+        expiry_date: item.expiry_date,
+        price: item.price || 0,
+        status: 'active',
+      }));
+
+      const { error } = await supabase
+        .from('fridge_items')
+        .insert(itemsToInsert);
+
+      if (error) throw error;
+
+      // Clear localStorage after successful migration
+      localStorage.removeItem('anonymous_items');
+      localStorage.removeItem('anonymous_item_count');
+      localStorage.removeItem('hasSeenSampleData');
+      localStorage.removeItem('sampleDataDismissed');
+
+      return anonymousItems.length;
+    } catch (error) {
+      console.error('Error migrating data:', error);
+      return 0;
+    }
   };
 
   const signOut = async () => {
@@ -189,6 +233,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         canAddItem,
         canGenerateRecipe,
         resetRecipeCount,
+        migrateAnonymousData,
       }}
     >
       {children}

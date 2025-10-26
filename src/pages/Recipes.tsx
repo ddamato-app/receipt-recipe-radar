@@ -8,11 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
-import chickenStirFryImg from "@/assets/recipe-chicken-stir-fry.jpg";
-import spaghettiCarbonaraImg from "@/assets/recipe-spaghetti-carbonara.jpg";
-import caesarSaladImg from "@/assets/recipe-caesar-salad.jpg";
-import friedRiceImg from "@/assets/recipe-fried-rice.jpg";
-import veggieOmeletteImg from "@/assets/recipe-veggie-omelette.jpg";
+import { SAMPLE_RECIPES } from "@/lib/sampleRecipes";
 
 type Recipe = {
   id: string;
@@ -34,58 +30,6 @@ type FridgeItem = {
   category: string;
   expiry_date: string | null;
 };
-
-type SampleRecipe = {
-  id: string;
-  name: string;
-  image: string;
-  cookTime: number;
-  difficulty: string;
-  ingredientCount: number;
-};
-
-const sampleRecipes: SampleRecipe[] = [
-  {
-    id: "sample-1",
-    name: "Chicken Stir Fry",
-    image: chickenStirFryImg,
-    cookTime: 15,
-    difficulty: "Easy",
-    ingredientCount: 8,
-  },
-  {
-    id: "sample-2",
-    name: "Spaghetti Carbonara",
-    image: spaghettiCarbonaraImg,
-    cookTime: 20,
-    difficulty: "Medium",
-    ingredientCount: 6,
-  },
-  {
-    id: "sample-3",
-    name: "Caesar Salad",
-    image: caesarSaladImg,
-    cookTime: 10,
-    difficulty: "Easy",
-    ingredientCount: 7,
-  },
-  {
-    id: "sample-4",
-    name: "Fried Rice",
-    image: friedRiceImg,
-    cookTime: 25,
-    difficulty: "Easy",
-    ingredientCount: 9,
-  },
-  {
-    id: "sample-5",
-    name: "Veggie Omelette",
-    image: veggieOmeletteImg,
-    cookTime: 10,
-    difficulty: "Easy",
-    ingredientCount: 5,
-  },
-];
 
 export default function Recipes() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -273,7 +217,7 @@ export default function Recipes() {
 
           {/* Sample Recipes */}
           <div className="grid grid-cols-1 gap-4">
-            {sampleRecipes.map((recipe) => (
+            {SAMPLE_RECIPES.map((recipe) => (
               <Card key={recipe.id} className="overflow-hidden shadow-lg hover:shadow-xl transition-all">
                 <div className="aspect-video w-full overflow-hidden">
                   <img 
@@ -283,7 +227,8 @@ export default function Recipes() {
                   />
                 </div>
                 <div className="p-4">
-                  <h3 className="text-lg font-bold text-foreground mb-3">{recipe.name}</h3>
+                  <h3 className="text-lg font-bold text-foreground mb-2">{recipe.name}</h3>
+                  <p className="text-sm text-muted-foreground mb-3">{recipe.description}</p>
                   
                   <div className="flex items-center gap-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1">
@@ -295,7 +240,7 @@ export default function Recipes() {
                     </Badge>
                     <div className="flex items-center gap-1">
                       <ChefHat className="w-4 h-4" />
-                      <span>{recipe.ingredientCount} ingredients</span>
+                      <span>{recipe.ingredients.length} ingredients</span>
                     </div>
                   </div>
                 </div>

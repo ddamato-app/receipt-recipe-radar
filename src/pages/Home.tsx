@@ -8,6 +8,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
+import { initializeAnonymousSampleData, clearAnonymousSampleData, getAnonymousItems } from "@/lib/sampleData";
 import {
   Tooltip,
   TooltipContent,
@@ -27,6 +28,7 @@ export default function Home() {
   const [moneyWasted, setMoneyWasted] = useState(0);
   const [loading, setLoading] = useState(true);
   const [hasSampleData, setHasSampleData] = useState(false);
+  const [showSampleBanner, setShowSampleBanner] = useState(false);
   const [clearingSampleData, setClearingSampleData] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
   const navigate = useNavigate();
@@ -42,8 +44,14 @@ export default function Home() {
   };
 
   useEffect(() => {
+    // Initialize sample data for anonymous users
+    if (tier === 'anonymous') {
+      initializeAnonymousSampleData();
+      const dismissed = localStorage.getItem('sampleDataDismissed');
+      setShowSampleBanner(!dismissed);
+    }
     fetchData();
-  }, []);
+  }, [tier]);
 
   const getDaysLeft = (expiryDate: string | null): number => {
     if (!expiryDate) return 999;
@@ -56,7 +64,11 @@ export default function Home() {
   const fetchData = async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      
+      // Handle anonymous users
+      if (!user || tier === 'anonymous') {
+        const anonymousItems = getAnonymousItems();
+        processAnonymousItems(anonymousItems);
         setLoading(false);
         return;
       }
@@ -207,6 +219,69 @@ export default function Home() {
     setMoneyWasted(wasted);
   };
 
+  const processAnonymousItems = (items: any[]) => {
+    const today = new Date();
+    
+    const activeItems = items.filter((item: any) => !item.status || item.status === 'active');
+    const expiringSoonItems = activeItems.filter((item: any) => {
+      if (!item.expiry_date) return false;
+      const expiry = new Date(item.expiry_date);
+      const daysLeft = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      return daysLeft > 0 && daysLeft <= 5;
+    });
+    
+    const expiredItems = activeItems.filter((item: any) => {
+      if (!item.expiry_date) return false;
+      const expiry = new Date(item.expiry_date);
+      return expiry < today;
+    });
+
+    setStats({
+      totalItems: activeItems.length,
+      expiringSoon: expiringSoonItems.length,
+      expired: expiredItems.length,
+    });
+
+    setExpiringItems(
+      expiringSoonItems.slice(0, 3).map((item: any) => {
+        const expiry = new Date(item.expiry_date);
+        const daysLeft = Math.ceil((expiry.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+        return {
+          name: item.name,
+          daysLeft,
+          category: item.category,
+        };
+      })
+    );
+
+    // No money tracking for anonymous users
+    setMoneySaved(0);
+    setMoneyWasted(0);
+
+    // Check if they have sample data
+    const hasSamples = items.some((item: any) => item.isSample);
+    setHasSampleData(hasSamples);
+  };
+
+  const handleClearSampleData = () => {
+    clearAnonymousSampleData();
+    setShowSampleBanner(false);
+    toast({
+      title: "Sample data cleared",
+      description: "Ready to add your own items!",
+    });
+    fetchData();
+  };
+
+  const handleKeepSampleData = () => {
+    setShowSampleBanner(false);
+    localStorage.setItem('sampleDataDismissed', 'true');
+    toast({
+      title: "Great!",
+      description: "Sample data kept. Add more items to get started.",
+    });
+  };
+
   const clearSampleData = async () => {
     setClearingSampleData(true);
     try {
@@ -247,8 +322,40 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
-      {/* Sample Data Banner */}
-      {hasSampleData && (
+      {/* Anonymous User Sample Data Banner */}
+      {tier === 'anonymous' && showSampleBanner && hasSampleData && (
+        <Card className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 shadow-lg border-primary/20 animate-fade-in">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <p className="font-semibold text-foreground mb-1">
+                👋 Sample data loaded to help you explore!
+              </p>
+              <p className="text-sm text-muted-foreground">
+                Try out the app with these sample items
+              </p>
+            </div>
+            <div className="flex gap-2 flex-shrink-0">
+              <Button
+                onClick={handleClearSampleData}
+                size="sm"
+                variant="outline"
+              >
+                Clear Sample Data
+              </Button>
+              <Button
+                onClick={handleKeepSampleData}
+                size="sm"
+                className="bg-primary"
+              >
+                Keep & Add More
+              </Button>
+            </div>
+          </div>
+        </Card>
+      )}
+
+      {/* Logged-in User Sample Data Banner */}
+      {tier !== 'anonymous' && hasSampleData && (
         <Card className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 shadow-lg border-primary/20 animate-fade-in">
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1">

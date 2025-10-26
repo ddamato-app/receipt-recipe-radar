@@ -1,13 +1,14 @@
-import { useState } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Mail, Lock, AlertCircle } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Loader2, Package } from 'lucide-react';
+import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Checkbox } from '@/components/ui/checkbox';
+import { Card } from '@/components/ui/card';
 
 type AuthModalProps = {
   open: boolean;
@@ -16,70 +17,94 @@ type AuthModalProps = {
 };
 
 export function AuthModal({ open, onOpenChange, defaultTab = 'signin' }: AuthModalProps) {
-  const [activeTab, setActiveTab] = useState(defaultTab);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [agreedToTerms, setAgreedToTerms] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState('');
-  const { signIn, signUp } = useAuth();
+  const { signIn, signUp, migrateAnonymousData, tier } = useAuth();
   const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [agreedToTerms, setAgreedToTerms] = useState(false);
+  const [addSampleData, setAddSampleData] = useState(false);
+  const [signInData, setSignInData] = useState({ email: '', password: '' });
+  const [signUpData, setSignUpData] = useState({ email: '', password: '' });
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
     setIsLoading(true);
 
-    try {
-      const { error } = await signIn(email, password);
-      if (error) {
-        setError(error.message);
-      } else {
-        toast({
-          title: 'Welcome back!',
-          description: 'You have successfully signed in.',
-        });
-        onOpenChange(false);
-        setEmail('');
-        setPassword('');
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
+    const { error } = await signIn(signInData.email, signInData.password);
+
+    if (error) {
+      toast({
+        title: 'Sign in failed',
+        description: error.message,
+        variant: 'destructive',
+      });
       setIsLoading(false);
+      return;
     }
+
+    // Migrate anonymous data if user was anonymous
+    if (tier === 'anonymous') {
+      const migratedCount = await migrateAnonymousData();
+      if (migratedCount > 0) {
+        toast({
+          title: '✅ Data synced!',
+          description: `Your ${migratedCount} items have been synced to your account!`,
+        });
+      }
+    }
+
+    toast({
+      title: 'Welcome back!',
+      description: 'You have successfully signed in.',
+    });
+    onOpenChange(false);
+    setIsLoading(false);
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
 
     if (!agreedToTerms) {
-      setError('Please agree to the Terms & Privacy Policy');
+      toast({
+        title: 'Terms required',
+        description: 'Please agree to the Terms & Privacy to continue.',
+        variant: 'destructive',
+      });
       return;
     }
 
     setIsLoading(true);
 
-    try {
-      const { error } = await signUp(email, password);
-      if (error) {
-        setError(error.message);
-      } else {
-        toast({
-          title: '🎉 Welcome to FreshTrack!',
-          description: 'Your account unlocks:\n✓ Unlimited items\n✓ Sync across devices\n✓ 3 months of history\n✓ Family sharing',
-        });
-        onOpenChange(false);
-        setEmail('');
-        setPassword('');
-        setAgreedToTerms(false);
-      }
-    } catch (err: any) {
-      setError(err.message);
-    } finally {
+    const { error } = await signUp(signUpData.email, signUpData.password, addSampleData);
+
+    if (error) {
+      toast({
+        title: 'Sign up failed',
+        description: error.message,
+        variant: 'destructive',
+      });
       setIsLoading(false);
+      return;
     }
+
+    // Migrate anonymous data if user was anonymous
+    if (tier === 'anonymous') {
+      const migratedCount = await migrateAnonymousData();
+      if (migratedCount > 0) {
+        toast({
+          title: '✅ Data synced!',
+          description: `Your ${migratedCount} items have been synced to your account!`,
+        });
+      }
+    }
+
+    toast({
+      title: '🎉 Welcome to FreshTrack!',
+      description: addSampleData 
+        ? 'Your account has been created with sample data. Check your email to verify.'
+        : 'Your account has been created. Check your email to verify.',
+    });
+    onOpenChange(false);
+    setIsLoading(false);
   };
 
   return (
@@ -92,135 +117,123 @@ export function AuthModal({ open, onOpenChange, defaultTab = 'signin' }: AuthMod
           </DialogDescription>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'signin' | 'signup')}>
+        <Tabs defaultValue={defaultTab}>
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="signin">Sign In</TabsTrigger>
             <TabsTrigger value="signup">Sign Up</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="signin" className="space-y-4 mt-4">
+          <TabsContent value="signin" className="space-y-4">
             <form onSubmit={handleSignIn} className="space-y-4">
-              <div className="space-y-2">
+              <div>
                 <Label htmlFor="signin-email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="signin-email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
+                <Input
+                  id="signin-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={signInData.email}
+                  onChange={(e) => setSignInData({ ...signInData, email: e.target.value })}
+                  required
+                  className="mt-1"
+                />
               </div>
-
-              <div className="space-y-2">
+              
+              <div>
                 <Label htmlFor="signin-password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="signin-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
+                <Input
+                  id="signin-password"
+                  type="password"
+                  placeholder="Enter your password"
+                  value={signInData.password}
+                  onChange={(e) => setSignInData({ ...signInData, password: e.target.value })}
+                  required
+                  className="mt-1"
+                />
               </div>
-
-              {error && (
-                <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
 
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Signing in...
                   </>
                 ) : (
                   'Sign In'
                 )}
               </Button>
-
-              <div className="text-center text-sm">
-                <Button variant="link" className="text-muted-foreground p-0">
-                  Forgot password?
-                </Button>
-              </div>
             </form>
           </TabsContent>
 
-          <TabsContent value="signup" className="space-y-4 mt-4">
+          <TabsContent value="signup" className="space-y-4">
             <form onSubmit={handleSignUp} className="space-y-4">
-              <div className="space-y-2">
+              <div>
                 <Label htmlFor="signup-email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="signup-email"
-                    type="email"
-                    placeholder="your@email.com"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    className="pl-10"
-                    required
-                  />
-                </div>
+                <Input
+                  id="signup-email"
+                  type="email"
+                  placeholder="you@example.com"
+                  value={signUpData.email}
+                  onChange={(e) => setSignUpData({ ...signUpData, email: e.target.value })}
+                  required
+                  className="mt-1"
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="signup-password">Password</Label>
+                <Input
+                  id="signup-password"
+                  type="password"
+                  placeholder="Create a strong password"
+                  value={signUpData.password}
+                  onChange={(e) => setSignUpData({ ...signUpData, password: e.target.value })}
+                  required
+                  className="mt-1"
+                />
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="signup-password">Password</Label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="signup-password"
-                    type="password"
-                    placeholder="••••••••"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="pl-10"
-                    required
-                    minLength={6}
+              {/* Sample Data Option */}
+              <Card className="p-4 bg-muted/30">
+                <div className="flex items-start space-x-3">
+                  <Checkbox 
+                    id="sampleData" 
+                    checked={addSampleData}
+                    onCheckedChange={(checked) => setAddSampleData(checked as boolean)}
+                    className="mt-1"
                   />
+                  <div className="flex-1">
+                    <label
+                      htmlFor="sampleData"
+                      className="text-sm font-medium text-foreground leading-none cursor-pointer"
+                    >
+                      <Package className="w-4 h-4 inline mr-1" />
+                      Add sample data to get started
+                    </label>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      We'll add 6 sample items to your fridge so you can explore the app
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-muted-foreground">
-                  Minimum 6 characters
-                </p>
-              </div>
+              </Card>
 
               <div className="flex items-start space-x-2">
-                <Checkbox
-                  id="terms"
+                <Checkbox 
+                  id="terms" 
                   checked={agreedToTerms}
                   onCheckedChange={(checked) => setAgreedToTerms(checked as boolean)}
                 />
                 <label
                   htmlFor="terms"
-                  className="text-sm text-muted-foreground leading-tight cursor-pointer"
+                  className="text-sm text-muted-foreground leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
                 >
-                  By signing up, you agree to our Terms of Service and Privacy Policy
+                  By signing up, you agree to Terms & Privacy
                 </label>
               </div>
-
-              {error && (
-                <div className="flex items-start gap-2 text-sm text-destructive bg-destructive/10 p-3 rounded-md">
-                  <AlertCircle className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                  <span>{error}</span>
-                </div>
-              )}
 
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Creating account...
                   </>
                 ) : (
