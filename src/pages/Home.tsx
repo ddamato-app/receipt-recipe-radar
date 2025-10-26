@@ -10,6 +10,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { initializeAnonymousSampleData, clearAnonymousSampleData, getAnonymousItems } from "@/lib/sampleData";
 import { calculateConsumptionScore, getScoreColor, getScoreLabel } from "@/lib/healthScore";
+import { InstallPrompt } from "@/components/InstallPrompt";
+import { StoreDetectionBanner } from "@/components/StoreDetectionBanner";
+import { checkNearbyStores, shouldCheckLocation, setLastLocationCheck } from "@/lib/locationService";
+import { showShoppingReminderNotification, shouldShowShoppingReminder, isNotificationEnabled } from "@/lib/notificationService";
 import {
   Tooltip,
   TooltipContent,
@@ -34,6 +38,8 @@ export default function Home() {
   const [showSampleBanner, setShowSampleBanner] = useState(false);
   const [clearingSampleData, setClearingSampleData] = useState(false);
   const [showUpgradePrompt, setShowUpgradePrompt] = useState(false);
+  const [detectedStore, setDetectedStore] = useState<string | null>(null);
+  const [showStoreBanner, setShowStoreBanner] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { tier } = useAuth();
@@ -54,7 +60,59 @@ export default function Home() {
       setShowSampleBanner(!dismissed);
     }
     fetchData();
+    checkLocationAndNotify();
   }, [tier]);
+
+  const checkLocationAndNotify = async () => {
+    // Only check if Shopping Assistant is enabled
+    const isEnabled = localStorage.getItem('shoppingAssistantEnabled') === 'true';
+    if (!isEnabled) return;
+
+    // Don't check too frequently
+    if (!shouldCheckLocation()) return;
+
+    try {
+      const result = await checkNearbyStores();
+      setLastLocationCheck();
+
+      if (result.isNearStore && result.storeName) {
+        // Check if banner was dismissed recently for this store
+        const dismissedKey = `storeBanner_${result.storeName}_dismissed`;
+        const lastDismissed = localStorage.getItem(dismissedKey);
+        
+        if (lastDismissed) {
+          const fourHours = 4 * 60 * 60 * 1000;
+          if (Date.now() - parseInt(lastDismissed, 10) < fourHours) {
+            return; // Don't show banner if dismissed recently
+          }
+        }
+
+        setDetectedStore(result.storeName);
+        setShowStoreBanner(true);
+      }
+
+      // Check if we should show shopping reminder
+      if (shouldShowShoppingReminder() && isNotificationEnabled()) {
+        const savedList = localStorage.getItem('savedShoppingList');
+        if (savedList) {
+          const items = JSON.parse(savedList);
+          if (items.length > 0) {
+            await showShoppingReminderNotification(items.length);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Location check failed:', error);
+    }
+  };
+
+  const handleDismissStoreBanner = () => {
+    if (detectedStore) {
+      const dismissedKey = `storeBanner_${detectedStore}_dismissed`;
+      localStorage.setItem(dismissedKey, Date.now().toString());
+    }
+    setShowStoreBanner(false);
+  };
 
   const getDaysLeft = (expiryDate: string | null): number => {
     if (!expiryDate) return 999;
@@ -343,6 +401,14 @@ export default function Home() {
 
   return (
     <div className="space-y-6">
+      {/* Store Detection Banner */}
+      {showStoreBanner && detectedStore && (
+        <StoreDetectionBanner 
+          storeName={detectedStore} 
+          onDismiss={handleDismissStoreBanner}
+        />
+      )}
+
       {/* Anonymous User Sample Data Banner */}
       {tier === 'anonymous' && showSampleBanner && hasSampleData && (
         <Card className="p-4 bg-gradient-to-r from-primary/10 to-secondary/10 shadow-lg border-primary/20 animate-fade-in">
@@ -666,6 +732,9 @@ export default function Home() {
         type="pro-feature"
         featureName="Receipt Scanning"
       />
+
+      {/* PWA Install Prompt */}
+      <InstallPrompt />
     </div>
   );
 }
