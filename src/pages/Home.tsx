@@ -151,16 +151,16 @@ export default function Home() {
       setConsumedThisWeek(consumedItems?.length || 0);
 
       if (!items || items.length === 0) {
-        await insertSampleData(user.id);
-        const { data: newItems } = await supabase
-          .from('fridge_items')
-          .select('*')
-          .eq('user_id', user.id);
-        
-        if (newItems) {
-          setHasSampleData(true);
-          processItems(newItems, startOfMonth);
-        }
+        // Start with empty fridge for new users
+        setStats({
+          totalItems: 0,
+          expiringSoon: 0,
+          expired: 0,
+        });
+        setExpiringItems([]);
+        setMoneySaved(0);
+        setMoneyWasted(0);
+        setHasSampleData(false);
       } else {
         const hasSamples = items.some(item => item.is_sample);
         setHasSampleData(hasSamples);
