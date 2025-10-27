@@ -9,121 +9,129 @@ function stripHeader(b64: string): string {
   return b64?.startsWith("data:") ? b64.split(",")[1] : b64;
 }
 
+async function postJSON(url: string, body: any): Promise<{ status: number; ok: boolean; json: any }> {
+  const r = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body)
+  });
+  const text = await r.text();
+  let json;
+  try { 
+    json = JSON.parse(text); 
+  } catch { 
+    json = { raw: text }; 
+  }
+  return { status: r.status, ok: r.ok, json };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
+  const diag: any = { step: "start" };
   try {
-    const { imageBase64, image } = await req.json();
-    const inputImage = imageBase64 || image;
-    
-    if (!inputImage) {
-      return new Response(
-        JSON.stringify({ ok: false, error: "Missing imageBase64" }), 
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
+    const ct = req.headers.get("content-type") || "";
+    diag.contentType = ct;
+
+    const body = ct.includes("application/json") ? await req.json() : {};
+    const imageBase64Raw = body.imageBase64 || body.image;
+    if (!imageBase64Raw) {
+      return new Response(JSON.stringify({
+        ok: false,
+        error: "MISSING_IMAGE_BASE64",
+        diag
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const clean = stripHeader(inputImage);
+    const imageBase64 = stripHeader(imageBase64Raw);
+    diag.imageLen = imageBase64.length;
+
+    const useVision = Deno.env.get('USE_GOOGLE_VISION') === "true";
+    diag.useVision = useVision;
+
+    // Endpoints from secrets
     const supabaseUrl = Deno.env.get('SUPABASE_URL');
+    const visionUrl = Deno.env.get('VISION_EDGE_URL') || `${supabaseUrl}/functions/v1/vision-ocr`;
+    const serverTesseractUrl = Deno.env.get('SERVER_TESSERACT_URL') || `${supabaseUrl}/functions/v1/tesseract-ocr`;
+    diag.visionUrl = !!visionUrl;
+    diag.serverTesseractUrl = !!serverTesseractUrl;
 
-    if (Deno.env.get('USE_GOOGLE_VISION') === 'true') {
-      console.log('Using Google Vision OCR pipeline...');
-      
-      // Call vision-ocr function
-      const visionUrl = `${supabaseUrl}/functions/v1/vision-ocr`;
-      const vr = await fetch(visionUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: clean })
-      });
-      
-      const vjson = await vr.json();
-      
-      if (!vjson.ok) {
-        return new Response(
-          JSON.stringify(vjson), 
-          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+    let result: any = { ok: false, engine: "", confidence: 0, text: "" };
+
+    if (useVision) {
+      if (!visionUrl) {
+        return new Response(JSON.stringify({
+          ok: false, error: "MISSING_VISION_EDGE_URL", diag
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
-
-      let out = vjson;
-
-      // Apply quality guardrails
-      if (out.confidence < 0.55 || out.text.length < 120) {
-        console.log(`Low quality detected: confidence=${out.confidence.toFixed(3)}, length=${out.text.length}`);
-        return new Response(
-          JSON.stringify({ 
-            ok: false, 
-            error: "LOW_QUALITY_IMAGE",
-            message: "Image quality too low. Please ensure receipt is flat, fills frame, and has no background distractions."
-          }), 
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+      diag.step = "vision";
+      const vr = await postJSON(visionUrl, { imageBase64 });
+      diag.visionStatus = vr.status;
+      if (!vr.ok) {
+        return new Response(JSON.stringify({
+          ok: false,
+          error: "VISION_NON_2XX",
+          upstream: vr.json,
+          diag
+        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
       }
+      result = vr.json;
 
-      // If confidence is low but acceptable, try tesseract fallback
-      const tesseractUrl = Deno.env.get('SERVER_TESSERACT_URL');
-      if (out.confidence < 0.75 && tesseractUrl) {
-        console.log('Vision confidence < 0.75, trying Tesseract fallback...');
-        try {
-          const tr = await fetch(tesseractUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ imageBase64: clean })
+      // Low confidence → try server fallback if configured
+      if (result.ok && typeof result.confidence === "number" && result.confidence < 0.75) {
+        if (!serverTesseractUrl) {
+          result.needs_review = true;
+          result.review_reason = "LOW_CONFIDENCE_NO_FALLBACK";
+          return new Response(JSON.stringify({ ...result, diag }), { 
+            status: 200, 
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
           });
-          const tjson = await tr.json();
-          if (tjson.ok) {
-            out = { ...tjson, engine: "tesseract-fallback" };
-            console.log('Using Tesseract fallback result');
-          }
-        } catch (e) {
-          console.log('Tesseract fallback failed, using Vision result:', e);
         }
+        diag.step = "tesseract_fallback";
+        const tr = await postJSON(serverTesseractUrl, { imageBase64 });
+        diag.tesseractStatus = tr.status;
+        if (tr.ok && tr.json?.ok) {
+          result = { ...tr.json, engine: "tesseract-fallback" };
+        } else {
+          result.needs_review = true;
+          result.review_reason = "LOW_CONFIDENCE_FALLBACK_FAILED";
+          result.upstream = tr.json;
+        }
+        return new Response(JSON.stringify({ ...result, diag }), { 
+          status: 200, 
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+        });
       }
 
-      return new Response(
-        JSON.stringify(out), 
-        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-      
-    } else {
-      console.log('Using Tesseract-only pipeline...');
-      const tesseractUrl = Deno.env.get('SERVER_TESSERACT_URL') || `${supabaseUrl}/functions/v1/tesseract-ocr`;
-      
-      const tr = await fetch(tesseractUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: clean })
+      return new Response(JSON.stringify({ ...result, diag }), { 
+        status: 200, 
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
       });
-      
-      const tjson = await tr.json();
-
-      // Apply quality guardrails
-      if (tjson.ok && (tjson.confidence < 0.55 || tjson.text.length < 120)) {
-        console.log(`Low quality detected: confidence=${tjson.confidence}, length=${tjson.text.length}`);
-        return new Response(
-          JSON.stringify({ 
-            ok: false, 
-            error: "LOW_QUALITY_IMAGE",
-            message: "Image quality too low. Please ensure receipt is flat, fills frame, and has no background distractions."
-          }), 
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-
-      return new Response(
-        JSON.stringify(tjson), 
-        { status: tr.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
     }
-    
+
+    // Vision disabled → must have server OCR
+    if (!serverTesseractUrl) {
+      return new Response(JSON.stringify({
+        ok: false, error: "MISSING_SERVER_TESSERACT_URL", diag
+      }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }
+    diag.step = "tesseract_only";
+    const tr = await postJSON(serverTesseractUrl, { imageBase64 });
+    diag.tesseractStatus = tr.status;
+    return new Response(JSON.stringify({ ...tr.json, diag }), { 
+      status: 200, 
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' } 
+    });
+
   } catch (e: any) {
-    console.error('Upload OCR error:', e);
-    return new Response(
-      JSON.stringify({ ok: false, error: e?.message ?? "Upload OCR error" }), 
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
+    console.error("EDGE_UNCAUGHT", e);
+    return new Response(JSON.stringify({
+      ok: false, 
+      error: "EDGE_UNCAUGHT", 
+      message: e?.message ?? String(e), 
+      diag
+    }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   }
 });
