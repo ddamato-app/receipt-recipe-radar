@@ -10,6 +10,10 @@ export interface ParsedReceiptItem {
   selected: boolean;
   confidence: 'high' | 'medium' | 'low';
   rawName?: string; // Original OCR text for reference
+  needsReview: boolean;
+  reviewReason?: string;
+  itemType: 'product' | 'coupon' | 'void' | 'fee';
+  originalPrice?: number; // Before any discounts
 }
 
 export interface ParsedReceipt {
@@ -18,6 +22,11 @@ export interface ParsedReceipt {
   total: number;
   items: ParsedReceiptItem[];
   warnings?: string[];
+  subtotal?: number;
+  tax?: number;
+  totalValidated: boolean;
+  totalMismatch?: number;
+  needsReview: boolean;
 }
 
 // Store-specific detection patterns
@@ -199,111 +208,238 @@ function detectCategory(itemName: string): string {
   return 'Other';
 }
 
-function parseItems(text: string, store: string): ParsedReceiptItem[] {
-  console.log('=== SIMPLIFIED PARSING START ===');
+function normalizeQuebecDecimal(priceStr: string): number {
+  // Quebec receipts often use comma as decimal separator
+  // Examples: "12,99" or "12.99"
+  const cleaned = priceStr.replace(/[^\d,.]/g, '');
   
-  // Split into lines
+  // If has comma, treat as decimal separator
+  if (cleaned.includes(',')) {
+    return parseFloat(cleaned.replace(',', '.'));
+  }
+  
+  return parseFloat(cleaned);
+}
+
+function detectItemType(line: string, name: string): 'product' | 'coupon' | 'void' | 'fee' {
+  const lowerLine = line.toLowerCase();
+  const lowerName = name.toLowerCase();
+  
+  // Detect coupons
+  if (lowerLine.includes('coupon') || lowerLine.includes('rabais') || 
+      lowerName.includes('coupon') || lowerName.includes('rabais')) {
+    return 'coupon';
+  }
+  
+  // Detect voided items
+  if (lowerLine.includes('void') || lowerLine.includes('annul') || 
+      lowerLine.includes('cancel')) {
+    return 'void';
+  }
+  
+  // Detect fees
+  if (lowerName.includes('fee') || lowerName.includes('frais') || 
+      lowerName.includes('deposit') || lowerName.includes('consigne')) {
+    return 'fee';
+  }
+  
+  return 'product';
+}
+
+function validateItemQuality(name: string, price: number): { needsReview: boolean; reason?: string } {
+  // Check for suspicious patterns
+  if (name.length < 3) {
+    return { needsReview: true, reason: 'Name too short' };
+  }
+  
+  if (/^[\d\s]+$/.test(name)) {
+    return { needsReview: true, reason: 'Name contains only numbers' };
+  }
+  
+  if (name.split(' ').length > 10) {
+    return { needsReview: true, reason: 'Name too long or malformed' };
+  }
+  
+  if (price < 0.50) {
+    return { needsReview: true, reason: 'Price suspiciously low' };
+  }
+  
+  if (price > 150) {
+    return { needsReview: true, reason: 'Price suspiciously high' };
+  }
+  
+  // Check for excessive special characters
+  const specialChars = (name.match(/[^a-zA-Z0-9\s\-']/g) || []).length;
+  if (specialChars > 3) {
+    return { needsReview: true, reason: 'Too many special characters' };
+  }
+  
+  return { needsReview: false };
+}
+
+function parseItems(text: string, store: string): ParsedReceiptItem[] {
+  console.log('=== ROBUST PARSING START ===');
+  
   const lines = text.split(/\r?\n/);
   console.log('Total lines to process:', lines.length);
   
   const items: ParsedReceiptItem[] = [];
   
-  // Words to skip (common receipt header/footer terms)
+  // Enhanced skip words
   const skipWords = [
     'TOTAL', 'TAX', 'TAXE', 'TPS', 'TVQ', 'HST', 'GST', 'PST',
-    'MEMBER', 'APPROVED', 'ANNUL', 'THANK', 'WAREHOUSE',
+    'MEMBER', 'APPROVED', 'THANK', 'WAREHOUSE',
     'MASTER', 'NOMBRE', 'SOUS', 'PAYMENT', 'CASH', 'CARD',
-    'VISA', 'DEBIT', 'CREDIT', 'CHANGE', 'TENDER'
+    'VISA', 'DEBIT', 'CREDIT', 'CHANGE', 'TENDER', 'BALANCE'
   ];
   
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i].trim();
     
-    // Skip empty or very short lines
     if (line.length < 5) continue;
     
-    // Skip lines with exclusion words
+    // Skip footer/header lines
     if (skipWords.some(word => line.toUpperCase().includes(word))) {
       continue;
     }
     
-    // Look for price pattern: X.XX or X,XX (1-3 digits before decimal)
-    const priceRegex = /(\d{1,3})[,\.](\d{2})/;
-    const priceMatch = line.match(priceRegex);
+    // Enhanced price pattern: supports both comma and dot decimals
+    const priceRegex = /(\d{1,3})[,\.](\d{2})/g;
+    const priceMatches = [...line.matchAll(priceRegex)];
     
-    if (!priceMatch) continue;
+    if (priceMatches.length === 0) continue;
     
-    // Parse price (convert comma to dot)
-    const price = parseFloat(priceMatch[1] + '.' + priceMatch[2]);
+    // Use the last price match (typically the actual price, not a code)
+    const priceMatch = priceMatches[priceMatches.length - 1];
+    const price = normalizeQuebecDecimal(priceMatch[0]);
     
-    // Price must be reasonable for grocery item
+    // Validate price range
     if (price < 0.50 || price > 200) {
       console.log(`Skipping unreasonable price: $${price}`);
       continue;
     }
     
-    // Extract name (everything before the price)
-    const priceIndex = line.indexOf(priceMatch[0]);
+    // Extract name
+    const priceIndex = line.lastIndexOf(priceMatch[0]);
     let rawName = line.substring(0, priceIndex).trim();
-    
-    // Clean the name
     const name = cleanItemName(rawName);
     
-    // Name must be decent
-    if (name.length < 3) {
-      console.log(`Skipping short name: "${name}"`);
+    if (name.length < 3 || /^\d+$/.test(name)) {
+      console.log(`Skipping invalid name: "${name}"`);
       continue;
     }
     
-    // Skip if only numbers
-    if (/^\d+$/.test(name)) {
-      console.log(`Skipping numeric name: "${name}"`);
+    // Detect item type
+    const itemType = detectItemType(line, name);
+    
+    // Skip void items (they're canceled)
+    if (itemType === 'void') {
+      console.log(`Skipping void item: "${name}"`);
       continue;
     }
     
     // Detect category
     const category = detectCategory(name);
     
+    // Validate item quality
+    const qualityCheck = validateItemQuality(name, price);
+    
     // Calculate confidence
     const confidence = calculateConfidence(name, price, category);
     
-    // Success! Add item
     const item: ParsedReceiptItem = {
       id: Math.random().toString(36).substring(7),
       name: name,
       rawName: rawName,
-      price: price,
+      price: itemType === 'coupon' ? -Math.abs(price) : price,
       quantity: 1,
       category: category,
       expiryDays: CATEGORY_EXPIRY[category] || 30,
-      selected: true,
+      selected: itemType === 'product', // Auto-select products only
       confidence: confidence,
+      needsReview: qualityCheck.needsReview,
+      reviewReason: qualityCheck.reason,
+      itemType: itemType,
     };
     
     items.push(item);
-    console.log(`✓ Extracted: "${name}" - $${price} (${category}, ${confidence} confidence)`);
+    console.log(`✓ Extracted: "${name}" - $${price} (${itemType}, ${category}, ${confidence} confidence)${qualityCheck.needsReview ? ' [NEEDS REVIEW]' : ''}`);
   }
   
   console.log('=== PARSING COMPLETE ===');
   console.log('Total items extracted:', items.length);
+  console.log('Items needing review:', items.filter(i => i.needsReview).length);
   
   return items;
 }
 
-function calculateTotal(text: string): number {
-  // Look for total line
-  const totalPattern = /total\s*\$?\s*(\d+\.\d{2})/i;
-  const match = text.match(totalPattern);
+function extractFinancials(text: string): { total: number; subtotal?: number; tax?: number } {
+  const lines = text.split(/\r?\n/);
+  let total = 0;
+  let subtotal: number | undefined;
+  let tax: number | undefined;
   
-  if (match) {
-    return parseFloat(match[1]);
+  for (const line of lines) {
+    const lowerLine = line.toLowerCase();
+    
+    // Match total (with various patterns)
+    if (/total/i.test(line) && !/sous.*total|sub.*total/i.test(line)) {
+      const match = line.match(/(\d{1,4})[,\.](\d{2})/);
+      if (match) {
+        total = normalizeQuebecDecimal(match[0]);
+      }
+    }
+    
+    // Match subtotal
+    if (/sous.*total|sub.*total/i.test(line)) {
+      const match = line.match(/(\d{1,4})[,\.](\d{2})/);
+      if (match) {
+        subtotal = normalizeQuebecDecimal(match[0]);
+      }
+    }
+    
+    // Match tax (TPS, TVQ, HST, GST, PST, TAX)
+    if (/\b(tps|tvq|hst|gst|pst|tax)\b/i.test(line) && !/total/i.test(line)) {
+      const match = line.match(/(\d{1,3})[,\.](\d{2})/);
+      if (match) {
+        const taxAmount = normalizeQuebecDecimal(match[0]);
+        tax = (tax || 0) + taxAmount;
+      }
+    }
   }
   
-  return 0;
+  return { total, subtotal, tax };
+}
+
+function validateTotal(items: ParsedReceiptItem[], total: number, subtotal?: number): { valid: boolean; mismatch?: number } {
+  // Calculate sum of all products (excluding coupons, fees)
+  const productSum = items
+    .filter(item => item.itemType === 'product')
+    .reduce((sum, item) => sum + item.price, 0);
+  
+  // If we have a subtotal, compare against it
+  const compareValue = subtotal || total;
+  const calculatedTotal = productSum;
+  
+  const mismatch = Math.abs(calculatedTotal - compareValue);
+  
+  // Allow 5% tolerance or $2 difference (whichever is larger)
+  const tolerance = Math.max(compareValue * 0.05, 2.0);
+  
+  const valid = mismatch <= tolerance;
+  
+  console.log('=== TOTAL VALIDATION ===');
+  console.log('Receipt total:', total);
+  console.log('Receipt subtotal:', subtotal);
+  console.log('Calculated product sum:', productSum.toFixed(2));
+  console.log('Mismatch:', mismatch.toFixed(2));
+  console.log('Valid:', valid);
+  
+  return { valid, mismatch: valid ? undefined : mismatch };
 }
 
 export function parseReceiptText(ocrText: string): ParsedReceipt {
-  console.log('=== OCR PARSING DEBUG ===');
+  console.log('=== ENHANCED OCR PARSING ===');
   console.log('Raw text (first 200 chars):', ocrText.substring(0, 200));
   console.log('Total text length:', ocrText.length);
   console.log('Total lines:', ocrText.split('\n').length);
@@ -320,28 +456,36 @@ export function parseReceiptText(ocrText: string): ParsedReceipt {
   // Find ALL prices
   const allPrices = [...ocrText.matchAll(/\d+[,\.]\d{2}/g)];
   console.log('All prices found:', allPrices.length);
-  console.log('Prices:', allPrices.slice(0, 10).map(m => m[0])); // First 10
+  console.log('Prices:', allPrices.slice(0, 10).map(m => m[0]));
   
   // Find ALL item codes
   const allCodes = [...ocrText.matchAll(/\d{7}/g)];
   console.log('All 7-digit codes found:', allCodes.length);
-  console.log('Codes:', allCodes.slice(0, 10).map(m => m[0])); // First 10
+  console.log('Codes:', allCodes.slice(0, 10).map(m => m[0]));
   
   const store = detectStore(ocrText);
   const date = detectDate(ocrText);
   const items = parseItems(ocrText, store);
-  const total = calculateTotal(ocrText);
+  const financials = extractFinancials(ocrText);
+  const validation = validateTotal(items, financials.total, financials.subtotal);
+  
+  const needsReview = !validation.valid || items.some(item => item.needsReview);
   
   console.log('=== PARSING RESULTS ===');
   console.log('Store detected:', store);
   console.log('Items extracted:', items.length);
+  console.log('Total validated:', validation.valid);
+  console.log('Needs review:', needsReview);
+  
   items.forEach((item, i) => {
     console.log(`Item ${i + 1}:`, {
       name: item.name,
       price: item.price,
       category: item.category,
       confidence: item.confidence,
-      quantity: item.quantity
+      itemType: item.itemType,
+      needsReview: item.needsReview,
+      reviewReason: item.reviewReason
     });
   });
   console.log('=== END DEBUG ===');
@@ -349,7 +493,12 @@ export function parseReceiptText(ocrText: string): ParsedReceipt {
   return {
     store,
     date,
-    total,
+    total: financials.total,
+    subtotal: financials.subtotal,
+    tax: financials.tax,
     items,
+    totalValidated: validation.valid,
+    totalMismatch: validation.mismatch,
+    needsReview,
   };
 }

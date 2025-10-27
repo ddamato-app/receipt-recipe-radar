@@ -10,13 +10,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Camera, Upload, X, AlertCircle, CheckCircle2, Trash2, Mail, ShieldCheck, ShieldAlert, AlertTriangle, TestTube } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { parseReceiptText, type ParsedReceiptItem, type ParsedReceipt } from '@/lib/receiptParser';
 import { validateReceiptText } from '@/lib/receiptValidation';
-import Tesseract from 'tesseract.js';
+import { preprocessReceiptImage } from '@/lib/imagePreprocessor';
+import Tesseract, { createWorker } from 'tesseract.js';
 import { addDays, format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface ReceiptScannerProps {
   open: boolean;
@@ -86,21 +89,18 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
   };
 
   const handleImageSelect = async (file: File) => {
+    console.log('Image selected:', file.name, file.size);
+    
+    // Validate file
     if (!file.type.startsWith('image/')) {
-      toast({
-        title: 'Invalid file',
-        description: 'Please select an image file',
-        variant: 'destructive',
-      });
+      setErrorMessage('Please select a valid image file');
+      setStep('error');
       return;
     }
 
     if (file.size > 10 * 1024 * 1024) {
-      toast({
-        title: 'File too large',
-        description: 'Please select an image under 10MB',
-        variant: 'destructive',
-      });
+      setErrorMessage('Image too large. Please select an image under 10MB');
+      setStep('error');
       return;
     }
 
@@ -109,98 +109,93 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
       const imageUrl = e.target?.result as string;
       setSelectedImage(imageUrl);
       setStep('processing');
-      
+      setProcessProgress(0);
+
       try {
-        // Step 1: Initial OCR with English to get text for validation
-        const initialResult = await Tesseract.recognize(
-          imageUrl,
-          'eng',
-          {
-            logger: (m) => {
-              if (m.status === 'recognizing text') {
-                setProcessProgress(Math.round(m.progress * 50)); // First half
-              }
-            },
-          }
-        );
-
-        let ocrText = initialResult.data.text;
+        console.log('=== PREPROCESSING IMAGE ===');
+        setProcessProgress(10);
         
-        if (!ocrText || ocrText.trim().length < 10) {
-          throw new Error('Could not extract text from image');
-        }
+        // Preprocess image for better OCR
+        const preprocessed = await preprocessReceiptImage(file);
+        console.log('Image preprocessed:', preprocessed.adjustments.join(', '));
+        setProcessProgress(20);
         
-        // Step 2: Validate text and detect language/store
-        const validation = validateReceiptText(ocrText);
-        const isCostco = ocrText.toLowerCase().includes('costco');
-        const detectedLanguage = validation.detectedLanguage || 'eng';
+        console.log('=== STARTING OCR ===');
         
-        // Step 3: Re-run OCR with proper language if needed
-        if (detectedLanguage === 'fra' || isCostco) {
-          const finalResult = await Tesseract.recognize(
-            imageUrl,
-            'fra+eng', // Bilingual for Quebec/Costco
-            {
-              logger: (m) => {
-                if (m.status === 'recognizing text') {
-                  setProcessProgress(50 + Math.round(m.progress * 50)); // Second half
-                }
-              },
+        // Create worker with enhanced configuration
+        const worker = await createWorker('fra+eng', 1, {
+          logger: (m) => {
+            console.log('Tesseract:', m);
+            if (m.status === 'recognizing text') {
+              setProcessProgress(20 + Math.round(m.progress * 60));
             }
-          );
-          ocrText = finalResult.data.text;
-        } else {
-          setProcessProgress(100); // Skip second pass
-        }
-        
-        // Handle validation errors
-        if (!validation.isValid) {
-          const errorIssue = validation.issues.find(issue => issue.type === 'error');
-          if (errorIssue) {
-            setErrorMessage(errorIssue.message);
-            setErrorSuggestion(errorIssue.suggestion);
-            setStep('error');
-            return;
-          }
-        }
-        
-        // Handle warnings but continue processing
-        const warnings = validation.issues
-          .filter(issue => issue.type === 'warning')
-          .map(issue => issue.message);
-        
-        if (warnings.length > 0) {
-          setWarningMessages(warnings);
-        }
+          },
+        });
 
-        // Store OCR text for debugging
+        // Configure Tesseract for receipt recognition
+        // PSM 6 = Assume a single uniform block of text
+        // OEM 1 = Neural nets LSTM engine only
+        await worker.setParameters({
+          tessedit_pageseg_mode: Tesseract.PSM.SINGLE_BLOCK,
+          tessedit_ocr_engine_mode: Tesseract.OEM.LSTM_ONLY,
+        });
+
+        // Perform OCR on preprocessed image
+        const { data } = await worker.recognize(preprocessed.dataUrl);
+        await worker.terminate();
+
+        const ocrText = data.text;
+        console.log('OCR complete. Text length:', ocrText.length);
+        console.log('First 300 chars:', ocrText.substring(0, 300));
+        setProcessProgress(85);
+
+        // Store for debug
         setOcrDebugText(ocrText);
-        setManualOcrText(ocrText); // For manual test mode
+        setManualOcrText(ocrText);
+
+        // Validate OCR output
+        const validation = validateReceiptText(ocrText);
+        if (!validation.isValid) {
+          console.error('OCR validation failed:', validation.issues);
+          setErrorMessage(
+            `Receipt scan quality is poor:\n${validation.issues.join('\n')}\n\nPlease try:\n- Better lighting\n- Flattening the receipt\n- Taking a clearer photo`
+          );
+          setStep('error');
+          return;
+        }
         
-        // If test parse mode is enabled, stop here and let user manually test
+        // If test parse mode is enabled, stop here
         if (testParseMode) {
           setStep('review');
           return;
         }
-        
-        // Parse the OCR text
+
+        // Parse the receipt
+        console.log('=== PARSING RECEIPT ===');
         const parsed = parseReceiptText(ocrText);
+        setProcessProgress(95);
         
-        if (parsed.items.length === 0) {
-          setErrorMessage('We couldn\'t find any items in this receipt');
-          setErrorSuggestion('This might not be a grocery receipt. Supported: Grocery stores and supermarkets. Not supported: Restaurants, gas stations.');
+        if (!parsed.items || parsed.items.length === 0) {
+          setErrorMessage('No items found on receipt. Please ensure the receipt is clearly visible and try again.');
           setStep('error');
           return;
         }
 
         setParsedReceipt(parsed);
         setEditedItems(parsed.items);
+        setProcessProgress(100);
         setStep('review');
         
-      } catch (error) {
-        console.error('OCR Error:', error);
-        setErrorMessage('We couldn\'t read your receipt clearly');
-        setErrorSuggestion('Please try again with better lighting, flatter receipt, and ensure all text is visible and in focus.');
+        const reviewCount = parsed.items.filter(i => i.needsReview).length;
+        
+        toast({
+          title: 'Receipt scanned successfully!',
+          description: `Found ${parsed.items.length} items${reviewCount > 0 ? ` (${reviewCount} need review)` : ''}`,
+        });
+
+      } catch (err) {
+        console.error('OCR Error:', err);
+        setErrorMessage('Failed to scan receipt. Please try again with a clearer image.');
         setStep('error');
       }
     };
