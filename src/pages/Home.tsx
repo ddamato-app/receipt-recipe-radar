@@ -385,6 +385,50 @@ export default function Home() {
     }
   };
 
+  const clearAllItems = async () => {
+    setClearingSampleData(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      // Delete ALL items for this user
+      const { error } = await supabase
+        .from('fridge_items')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+
+      // Immediately update UI state
+      setHasSampleData(false);
+      setStats({
+        totalItems: 0,
+        expiringSoon: 0,
+        expired: 0,
+      });
+      setExpiringItems([]);
+      setMoneySaved(0);
+      setMoneyWasted(0);
+      
+      toast({
+        title: "All items cleared",
+        description: "Your fridge is now empty",
+      });
+      
+      // Refresh from database
+      await fetchData();
+    } catch (error: any) {
+      console.error('Error clearing all items:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to clear items",
+        variant: "destructive",
+      });
+    } finally {
+      setClearingSampleData(false);
+    }
+  };
+
   const efficiency = moneySaved + moneyWasted > 0 
     ? Math.round((moneySaved / (moneySaved + moneyWasted)) * 100) 
     : 0;
@@ -477,6 +521,40 @@ export default function Home() {
                 <>
                   <X className="w-4 h-4 mr-2" />
                   <span>Clear Sample Data</span>
+                </>
+              )}
+            </Button>
+          </div>
+        </Card>
+      )}
+      
+      {tier !== 'anonymous' && !hasSampleData && stats.totalItems > 0 && (
+        <Card className="p-4 sm:p-6 bg-gradient-to-r from-orange-50 to-red-50 shadow-md border-orange-200 animate-fade-in overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex-1 w-full">
+              <p className="font-semibold text-sm sm:text-base text-foreground mb-1">
+                🗑️ Clear all items from your fridge
+              </p>
+              <p className="text-xs sm:text-sm text-muted-foreground">
+                Remove all {stats.totalItems} items and start fresh
+              </p>
+            </div>
+            <Button
+              onClick={clearAllItems}
+              disabled={clearingSampleData}
+              size="sm"
+              variant="outline"
+              className="w-full sm:w-auto text-xs sm:text-sm px-3 py-2 min-h-[44px] whitespace-nowrap border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+            >
+              {clearingSampleData ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  <span>Clearing...</span>
+                </>
+              ) : (
+                <>
+                  <X className="w-4 h-4 mr-2" />
+                  <span>Clear All Items</span>
                 </>
               )}
             </Button>
