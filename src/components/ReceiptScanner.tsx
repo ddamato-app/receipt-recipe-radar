@@ -7,7 +7,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Camera, Upload, X, AlertCircle, CheckCircle2, Trash2, Mail, ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import { Loader2, Camera, Upload, X, AlertCircle, CheckCircle2, Trash2, Mail, ShieldCheck, ShieldAlert, AlertTriangle, TestTube } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { parseReceiptText, type ParsedReceiptItem, type ParsedReceipt } from '@/lib/receiptParser';
@@ -35,7 +38,52 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
   const [warningMessages, setWarningMessages] = useState<string[]>([]);
   const [ocrDebugText, setOcrDebugText] = useState('');
   const [showDebug, setShowDebug] = useState(false);
+  const [testParseMode, setTestParseMode] = useState(false);
+  const [manualOcrText, setManualOcrText] = useState('');
+  const [manualTestResults, setManualTestResults] = useState<{ name: string; price: number }[]>([]);
   const { toast } = useToast();
+
+  // Manual extraction test function
+  const manualExtractTest = (text: string) => {
+    console.log('=== MANUAL EXTRACTION TEST ===');
+    console.log('Input text length:', text.length);
+    
+    const lines = text.split(/\r?\n/);
+    const items: { name: string; price: number }[] = [];
+    
+    for (let line of lines) {
+      // Skip obviously bad lines
+      if (line.length < 5) continue;
+      if (/TOTAL|TAXE|TAX|MEMBER|APPROVED|WAREHOUSE|THANK|MASTER|NOMBRE/i.test(line)) continue;
+      
+      // Look for price at end of line (handle comma or dot)
+      const priceMatch = line.match(/(\d+)[,\.](\d{2})\s*-?(?:FP)?\s*$/i);
+      if (!priceMatch) continue;
+      
+      const price = parseFloat(priceMatch[1] + '.' + priceMatch[2]);
+      
+      // Everything before the price is the item name
+      let name = line.substring(0, line.lastIndexOf(priceMatch[0])).trim();
+      
+      // Clean up
+      name = name.replace(/^\d+\s*/, ''); // Remove leading numbers
+      name = name.replace(/^\d{7}[A-Z]*\s*/, ''); // Remove Costco item codes
+      name = name.substring(0, 50); // Limit length
+      
+      if (name.length >= 3) {
+        items.push({ name, price });
+        console.log('Extracted:', { name, price });
+      }
+    }
+    
+    console.log('Total items extracted:', items.length);
+    return items;
+  };
+
+  const handleManualExtract = () => {
+    const results = manualExtractTest(manualOcrText);
+    setManualTestResults(results);
+  };
 
   const handleImageSelect = async (file: File) => {
     if (!file.type.startsWith('image/')) {
@@ -127,6 +175,13 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
 
         // Store OCR text for debugging
         setOcrDebugText(ocrText);
+        setManualOcrText(ocrText); // For manual test mode
+        
+        // If test parse mode is enabled, stop here and let user manually test
+        if (testParseMode) {
+          setStep('review');
+          return;
+        }
         
         // Parse the OCR text
         const parsed = parseReceiptText(ocrText);
@@ -171,6 +226,8 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
     setWarningMessages([]);
     setOcrDebugText('');
     setShowDebug(false);
+    setManualOcrText('');
+    setManualTestResults([]);
   };
 
   const handleToggleItem = (itemId: string) => {
@@ -265,9 +322,25 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
     }}>
       <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Scan Receipt</DialogTitle>
+          <DialogTitle className="flex items-center justify-between">
+            <span>Scan Receipt</span>
+            <div className="flex items-center gap-2">
+              <TestTube className="w-4 h-4 text-muted-foreground" />
+              <Switch
+                checked={testParseMode}
+                onCheckedChange={setTestParseMode}
+                id="test-mode"
+              />
+              <Label htmlFor="test-mode" className="text-sm text-muted-foreground cursor-pointer">
+                Test Mode
+              </Label>
+            </div>
+          </DialogTitle>
           <DialogDescription>
-            Upload a photo of your grocery receipt to automatically add items
+            {testParseMode 
+              ? 'Test mode: Manually edit OCR text and test extraction'
+              : 'Upload a photo of your grocery receipt to automatically add items'
+            }
           </DialogDescription>
         </DialogHeader>
 
@@ -383,10 +456,65 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
         )}
 
         {/* Review Step */}
-        {step === 'review' && parsedReceipt && (
+        {step === 'review' && (
           <div className="space-y-4">
+            {/* Manual Test Mode */}
+            {testParseMode && (
+              <Card className="p-4 border-purple-500/50 bg-purple-50 dark:bg-purple-950/20">
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <TestTube className="w-5 h-5 text-purple-600" />
+                    <h3 className="font-semibold text-purple-900 dark:text-purple-100">
+                      Manual Parse Test
+                    </h3>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Raw OCR Text (editable):</Label>
+                    <Textarea
+                      value={manualOcrText}
+                      onChange={(e) => setManualOcrText(e.target.value)}
+                      className="font-mono text-xs h-48"
+                      placeholder="Paste or edit OCR text here..."
+                    />
+                  </div>
+                  
+                  <Button 
+                    onClick={handleManualExtract}
+                    className="w-full"
+                    variant="default"
+                  >
+                    <TestTube className="w-4 h-4 mr-2" />
+                    Extract Items (Simple Test)
+                  </Button>
+                  
+                  {manualTestResults.length > 0 && (
+                    <div className="mt-4 space-y-2">
+                      <p className="font-semibold text-purple-900 dark:text-purple-100">
+                        Found {manualTestResults.length} items:
+                      </p>
+                      <div className="space-y-1 max-h-64 overflow-y-auto">
+                        {manualTestResults.map((item, idx) => (
+                          <div 
+                            key={idx} 
+                            className="flex items-center justify-between p-2 bg-purple-100 dark:bg-purple-900 rounded text-sm"
+                          >
+                            <span className="font-medium">{item.name}</span>
+                            <Badge variant="secondary">${item.price.toFixed(2)}</Badge>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-xs text-purple-600 dark:text-purple-400 mt-2">
+                        Check browser console for extraction logs
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+            
             {/* OCR Debug Panel */}
-            {ocrDebugText && (
+            {ocrDebugText && !testParseMode && (
               <Card className="p-4 border-blue-500/50 bg-blue-50 dark:bg-blue-950/20">
                 <div className="space-y-2">
                   <Button
@@ -438,7 +566,7 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
             )}
             
             {/* Warnings Banner */}
-            {warningMessages.length > 0 && (
+            {warningMessages.length > 0 && !testParseMode && (
               <Card className="p-4 border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
                 <div className="flex items-start gap-3">
                   <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
@@ -459,6 +587,9 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
               </Card>
             )}
             
+            {/* Only show receipt details and items if NOT in test mode */}
+            {!testParseMode && parsedReceipt && (
+              <>
             <Card className="p-4 bg-muted/50">
               <div className="flex items-center justify-between mb-2">
                 <div>
@@ -612,6 +743,8 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
                 )}
               </Button>
             </div>
+              </>
+            )}
           </div>
         )}
 
