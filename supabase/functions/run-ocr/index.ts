@@ -53,9 +53,102 @@ serve(async (req) => {
 });
 
 /**
- * Run OCR with advanced multi-pass processing
+ * Call Google Vision API for OCR
+ */
+async function runGoogleVisionOCR(imageBuffer: Uint8Array): Promise<OCRResult | null> {
+  const apiKey = Deno.env.get('GOOGLE_VISION_API_KEY');
+  if (!apiKey) {
+    console.log('Google Vision API key not configured, skipping');
+    return null;
+  }
+
+  try {
+    console.log('Calling Google Vision API...');
+    
+    const base64Image = btoa(String.fromCharCode(...imageBuffer));
+    
+    const response = await fetch(
+      `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          requests: [{
+            image: { content: base64Image },
+            features: [{ type: 'DOCUMENT_TEXT_DETECTION' }]
+          }]
+        })
+      }
+    );
+
+    if (!response.ok) {
+      console.error('Google Vision API error:', response.status);
+      return null;
+    }
+
+    const data = await response.json();
+    const annotation = data.responses?.[0]?.fullTextAnnotation;
+    
+    if (!annotation) {
+      console.log('No text detected by Google Vision');
+      return null;
+    }
+
+    // Extract text and calculate confidence
+    const text = annotation.text || '';
+    const pages = annotation.pages || [];
+    
+    // Calculate mean confidence from words
+    let totalConf = 0;
+    let wordCount = 0;
+    
+    pages.forEach((page: any) => {
+      page.blocks?.forEach((block: any) => {
+        block.paragraphs?.forEach((paragraph: any) => {
+          paragraph.words?.forEach((word: any) => {
+            if (word.confidence !== undefined) {
+              totalConf += word.confidence;
+              wordCount++;
+            }
+          });
+        });
+      });
+    });
+
+    const meanConfidence = wordCount > 0 ? totalConf / wordCount : 0;
+    
+    console.log('Google Vision confidence:', meanConfidence);
+    
+    return {
+      text,
+      meanConfidence,
+      tokens: [], // Google Vision tokens could be extracted if needed
+    };
+  } catch (error) {
+    console.error('Google Vision error:', error);
+    return null;
+  }
+}
+
+/**
+ * Run OCR with Google Vision first, fallback to Tesseract if needed
  */
 async function runOCR(imageBuffer: Uint8Array): Promise<OCRResult> {
+  // Try Google Vision first
+  const visionResult = await runGoogleVisionOCR(imageBuffer);
+  
+  if (visionResult && visionResult.meanConfidence && visionResult.meanConfidence >= 0.75) {
+    console.log('Using Google Vision result (high confidence)');
+    return visionResult;
+  }
+  
+  if (visionResult) {
+    console.log(`Google Vision confidence ${visionResult.meanConfidence} < 0.75, falling back to Tesseract`);
+  }
+  
+  // Fallback to Tesseract with preprocessing
+  console.log('Using Tesseract OCR...');
+  
   // Convert buffer to base64 for Tesseract.js API
   const base64Image = btoa(String.fromCharCode(...imageBuffer));
   const imageDataUrl = `data:image/png;base64,${base64Image}`;
