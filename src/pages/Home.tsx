@@ -408,7 +408,7 @@ export default function Home() {
   };
 
   return (
-    <div className="space-y-8 pb-4">
+    <div className="space-y-4 sm:space-y-6 lg:space-y-8 pb-4">
       {/* Store Detection Banner */}
       {showStoreBanner && detectedStore && (
         <StoreDetectionBanner 
@@ -419,21 +419,30 @@ export default function Home() {
 
       {/* Sample Data Banners */}
       {tier === 'anonymous' && showSampleBanner && hasSampleData && (
-        <Card className="p-4 bg-gradient-to-r from-blue-50 to-green-50 shadow-md border-blue-200 animate-fade-in">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1">
-              <p className="font-semibold text-foreground mb-1">
+        <Card className="p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-green-50 shadow-md border-blue-200 animate-fade-in overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex-1 w-full">
+              <p className="font-semibold text-sm sm:text-base text-foreground mb-1">
                 🎉 Sample data loaded - try the app!
               </p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 This is what FreshTrack looks like in action
               </p>
             </div>
-            <div className="flex gap-2 flex-shrink-0">
-              <Button onClick={handleClearSampleData} size="sm" variant="outline">
+            <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+              <Button 
+                onClick={handleClearSampleData} 
+                size="sm" 
+                variant="outline"
+                className="w-full sm:w-auto text-xs sm:text-sm px-3 py-2 min-h-[44px]"
+              >
                 Clear Sample Data
               </Button>
-              <Button onClick={handleKeepSampleData} size="sm" className="bg-primary">
+              <Button 
+                onClick={handleKeepSampleData} 
+                size="sm" 
+                className="w-full sm:w-auto text-xs sm:text-sm px-3 py-2 min-h-[44px] bg-primary"
+              >
                 Add My Own Items
               </Button>
             </div>
@@ -442,13 +451,13 @@ export default function Home() {
       )}
 
       {tier !== 'anonymous' && hasSampleData && (
-        <Card className="p-4 bg-gradient-to-r from-blue-50 to-green-50 shadow-md border-blue-200 animate-fade-in">
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex-1">
-              <p className="font-semibold text-foreground mb-1">
+        <Card className="p-4 sm:p-6 bg-gradient-to-r from-blue-50 to-green-50 shadow-md border-blue-200 animate-fade-in overflow-hidden">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4">
+            <div className="flex-1 w-full">
+              <p className="font-semibold text-sm sm:text-base text-foreground mb-1">
                 🎉 Sample data loaded - try the app!
               </p>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 Clear it when you're ready to add your own items
               </p>
             </div>
@@ -457,17 +466,17 @@ export default function Home() {
               disabled={clearingSampleData}
               size="sm"
               variant="outline"
-              className="flex-shrink-0"
+              className="w-full sm:w-auto text-xs sm:text-sm px-3 py-2 min-h-[44px] whitespace-nowrap"
             >
               {clearingSampleData ? (
                 <>
                   <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Clearing...
+                  <span>Clearing...</span>
                 </>
               ) : (
                 <>
                   <X className="w-4 h-4 mr-2" />
-                  Clear Sample Data
+                  <span>Clear Sample Data</span>
                 </>
               )}
             </Button>
@@ -476,21 +485,21 @@ export default function Home() {
       )}
 
       {/* Warm Greeting Header */}
-      <div className="relative rounded-3xl overflow-hidden shadow-xl">
+      <div className="relative rounded-2xl sm:rounded-3xl overflow-hidden shadow-xl">
         <img 
           src={heroImage} 
           alt="Fresh groceries" 
-          className="w-full h-56 object-cover opacity-90"
+          className="w-full h-44 sm:h-56 lg:h-64 object-cover opacity-90"
         />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent flex flex-col justify-end p-6">
+        <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent flex flex-col justify-end p-4 sm:p-6">
           <div className="animate-fade-in">
-            <h1 className="text-3xl font-medium text-white mb-1">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-medium text-white mb-1 drop-shadow-lg">
               {getGreeting()}! {getTimeBasedEmoji()}
             </h1>
-            <p className="text-white/90 text-base mb-1">
+            <p className="text-white/90 text-sm sm:text-base mb-1 drop-shadow-md">
               {stats.expiringSoon > 0 ? `Your fridge has ${stats.expiringSoon} ${stats.expiringSoon === 1 ? 'item' : 'items'} expiring soon` : "Your fridge is looking good"}
             </p>
-            <p className="text-white/80 text-sm">
+            <p className="text-white/80 text-xs sm:text-sm drop-shadow-md">
               {getContextualMessage(stats.expiringSoon)}
             </p>
           </div>
@@ -498,36 +507,36 @@ export default function Home() {
       </div>
 
       {/* Your Fridge at a Glance */}
-      <Card className="p-6 shadow-lg bg-gradient-to-br from-green-50/50 to-blue-50/50 border-green-200/50 animate-scale-in">
-        <h2 className="text-xl font-semibold text-foreground mb-4">Your Fridge at a Glance</h2>
+      <Card className="p-4 sm:p-6 shadow-lg bg-gradient-to-br from-green-50/50 to-blue-50/50 border-green-200/50 animate-scale-in overflow-hidden">
+        <h2 className="text-lg sm:text-xl font-semibold text-foreground mb-3 sm:mb-4">Your Fridge at a Glance</h2>
         
-        <div className="flex items-center justify-around py-4">
+        <div className="flex items-center justify-around py-3 sm:py-4">
           <div className="text-center">
-            <div className="text-4xl mb-2">🥬</div>
-            <div className="text-3xl font-bold text-foreground">{loading ? "-" : stats.totalItems}</div>
-            <div className="text-sm text-muted-foreground">Items</div>
+            <div className="text-3xl sm:text-4xl mb-1 sm:mb-2">🥬</div>
+            <div className="text-2xl sm:text-3xl font-bold text-foreground">{loading ? "-" : stats.totalItems}</div>
+            <div className="text-xs sm:text-sm text-muted-foreground">Items</div>
           </div>
           
-          <Separator orientation="vertical" className="h-16" />
+          <Separator orientation="vertical" className="h-12 sm:h-16" />
           
           <div className="text-center">
-            <div className="text-4xl mb-2">⏰</div>
-            <div className="text-3xl font-bold text-warning">{loading ? "-" : stats.expiringSoon}</div>
-            <div className="text-sm text-muted-foreground">Expiring</div>
+            <div className="text-3xl sm:text-4xl mb-1 sm:mb-2">⏰</div>
+            <div className="text-2xl sm:text-3xl font-bold text-warning">{loading ? "-" : stats.expiringSoon}</div>
+            <div className="text-xs sm:text-sm text-muted-foreground">Expiring</div>
           </div>
           
-          <Separator orientation="vertical" className="h-16" />
+          <Separator orientation="vertical" className="h-12 sm:h-16" />
           
           <div className="text-center">
-            <div className="text-4xl mb-2">✨</div>
-            <div className="text-3xl font-bold text-success">{loading ? "-" : stats.totalItems - stats.expired}</div>
-            <div className="text-sm text-muted-foreground">Fresh</div>
+            <div className="text-3xl sm:text-4xl mb-1 sm:mb-2">✨</div>
+            <div className="text-2xl sm:text-3xl font-bold text-success">{loading ? "-" : stats.totalItems - stats.expired}</div>
+            <div className="text-xs sm:text-sm text-muted-foreground">Fresh</div>
           </div>
         </div>
         
-        <Separator className="my-4" />
+        <Separator className="my-3 sm:my-4" />
         
-        <p className="text-center text-base font-medium text-foreground">
+        <p className="text-center text-sm sm:text-base font-medium text-foreground px-2">
           {statusMessage}
         </p>
       </Card>
@@ -655,10 +664,10 @@ export default function Home() {
       </Card>
 
       {/* Primary Action Buttons */}
-      <div className="grid grid-cols-2 gap-4 animate-scale-in" style={{ animationDelay: '100ms' }}>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4 animate-scale-in" style={{ animationDelay: '100ms' }}>
         <Button 
           onClick={handleProFeatureClick}
-          className="h-32 bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 relative"
+          className="h-28 sm:h-32 min-h-[112px] bg-gradient-to-br from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 relative overflow-hidden"
         >
           {tier !== 'pro' && (
             <Badge className="absolute top-2 right-2 bg-yellow-500 text-white text-xs border-0">
@@ -666,22 +675,22 @@ export default function Home() {
               Pro
             </Badge>
           )}
-          <div className="flex flex-col items-center gap-3">
-            <Camera className="w-8 h-8" />
+          <div className="flex flex-col items-center gap-2 sm:gap-3 px-2">
+            <Camera className="w-7 h-7 sm:w-8 sm:h-8" />
             <div className="text-center">
-              <p className="text-base font-semibold mb-1">Add Items</p>
-              <p className="text-xs opacity-90">Scan receipt or add manually</p>
+              <p className="text-sm sm:text-base font-semibold mb-0.5 sm:mb-1">Add Items</p>
+              <p className="text-xs opacity-90 line-clamp-1">Scan receipt or add manually</p>
             </div>
           </div>
         </Button>
         
         <Link to="/recipes" className="block">
-          <Button className="w-full h-32 bg-gradient-to-br from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1">
-            <div className="flex flex-col items-center gap-3">
-              <ChefHat className="w-8 h-8" />
+          <Button className="w-full h-28 sm:h-32 min-h-[112px] bg-gradient-to-br from-orange-500 to-yellow-500 hover:from-orange-600 hover:to-yellow-600 text-white shadow-lg hover:shadow-xl transition-all hover:-translate-y-1 overflow-hidden">
+            <div className="flex flex-col items-center gap-2 sm:gap-3 px-2">
+              <ChefHat className="w-7 h-7 sm:w-8 sm:h-8" />
               <div className="text-center">
-                <p className="text-base font-semibold mb-1">Find Recipes</p>
-                <p className="text-xs opacity-90">Use what you have tonight</p>
+                <p className="text-sm sm:text-base font-semibold mb-0.5 sm:mb-1">Find Recipes</p>
+                <p className="text-xs opacity-90 line-clamp-1">Use what you have tonight</p>
               </div>
             </div>
           </Button>
@@ -689,7 +698,7 @@ export default function Home() {
       </div>
 
       {/* Secondary Actions */}
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-2 gap-3 sm:gap-4">
         <Button
           onClick={() => {
             const isEnabled = localStorage.getItem('shoppingAssistantEnabled') === 'true';
@@ -700,19 +709,19 @@ export default function Home() {
             }
           }}
           variant="outline"
-          className="h-20 bg-gradient-to-br from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border-purple-200"
+          className="h-20 sm:h-24 min-h-[80px] bg-gradient-to-br from-purple-50 to-blue-50 hover:from-purple-100 hover:to-blue-100 border-purple-200 overflow-hidden"
         >
-          <div className="flex flex-col items-center gap-2">
-            <ShoppingCart className="w-6 h-6 text-purple-600" />
-            <span className="text-sm font-medium text-foreground">Shopping Mode</span>
+          <div className="flex flex-col items-center gap-1.5 sm:gap-2 px-1">
+            <ShoppingCart className="w-5 h-5 sm:w-6 sm:h-6 text-purple-600" />
+            <span className="text-xs sm:text-sm font-medium text-foreground text-center line-clamp-2">Shopping Mode</span>
           </div>
         </Button>
         
         <Link to="/spending">
-          <Button variant="outline" className="w-full h-20 bg-gradient-to-br from-blue-50 to-gray-50 hover:from-blue-100 hover:to-gray-100 border-blue-200">
-            <div className="flex flex-col items-center gap-2">
-              <BarChart3 className="w-6 h-6 text-blue-600" />
-              <span className="text-sm font-medium text-foreground">My Stats</span>
+          <Button variant="outline" className="w-full h-20 sm:h-24 min-h-[80px] bg-gradient-to-br from-blue-50 to-gray-50 hover:from-blue-100 hover:to-gray-100 border-blue-200 overflow-hidden">
+            <div className="flex flex-col items-center gap-1.5 sm:gap-2 px-1">
+              <BarChart3 className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600" />
+              <span className="text-xs sm:text-sm font-medium text-foreground text-center line-clamp-2">My Stats</span>
             </div>
           </Button>
         </Link>
