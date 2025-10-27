@@ -287,25 +287,18 @@ Deno.serve(async (req) => {
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
     );
 
-    // Get user from auth header
+    // Try to get user from Authorization header (optional)
     const authHeader = req.headers.get('Authorization');
-    if (!authHeader) {
-      return new Response(
-        JSON.stringify({ error: 'Missing authorization header' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    let userId: string | null = null;
+    if (authHeader) {
+      const { data: { user }, error: userError } = await supabase.auth.getUser(
+        authHeader.replace('Bearer ', '')
       );
+      if (!userError && user) {
+        userId = user.id;
+      }
     }
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser(
-      authHeader.replace('Bearer ', '')
-    );
-
-    if (userError || !user) {
-      return new Response(
-        JSON.stringify({ error: 'Unauthorized' }),
-        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
 
     // Parse request body
     const { image } = await req.json();
@@ -339,40 +332,48 @@ Deno.serve(async (req) => {
     const parsed = parseReceipt(ocrText);
     console.log('Receipt parsed:', { itemCount: parsed.items.length, total: parsed.total });
 
-    // Save to database
-    const { data: savedReceipt, error: dbError } = await supabase
-      .from('receipt_parses')
-      .insert({
-        user_id: user.id,
-        vendor: parsed.vendor,
-        date: parsed.date,
-        currency: parsed.currency,
-        items: parsed.items,
-        discounts: parsed.discounts,
-        subtotal: parsed.subtotal,
-        tax_total: parsed.tax_total,
-        total: parsed.total,
-        raw_text: parsed.raw_text,
-        needs_review: parsed.needs_review,
-        review_reasons: parsed.review_reasons,
-      })
-      .select()
-      .single();
+    if (userId) {
+      // Save to database when authenticated
+      const { data: savedReceipt, error: dbError } = await supabase
+        .from('receipt_parses')
+        .insert({
+          user_id: userId,
+          vendor: parsed.vendor,
+          date: parsed.date,
+          currency: parsed.currency,
+          items: parsed.items,
+          discounts: parsed.discounts,
+          subtotal: parsed.subtotal,
+          tax_total: parsed.tax_total,
+          total: parsed.total,
+          raw_text: parsed.raw_text,
+          needs_review: parsed.needs_review,
+          review_reasons: parsed.review_reasons,
+        })
+        .select()
+        .single();
 
-    if (dbError) {
-      console.error('Database error:', dbError);
+      if (dbError) {
+        console.error('Database error:', dbError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to save receipt', details: dbError }),
+          { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
+      console.log('Receipt saved successfully:', savedReceipt.id);
+
       return new Response(
-        JSON.stringify({ error: 'Failed to save receipt', details: dbError }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify(savedReceipt),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    } else {
+      // Unauthenticated: return parsed result directly (no DB write)
+      return new Response(
+        JSON.stringify({ id: null, ...parsed }),
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    console.log('Receipt saved successfully:', savedReceipt.id);
-
-    return new Response(
-      JSON.stringify(savedReceipt),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-    );
 
   } catch (error) {
     console.error('Unexpected error:', error);
