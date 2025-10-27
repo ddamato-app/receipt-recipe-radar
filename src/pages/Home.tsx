@@ -346,6 +346,7 @@ export default function Home() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
 
+      // Delete all sample items
       const { error } = await supabase
         .from('fridge_items')
         .delete()
@@ -354,18 +355,29 @@ export default function Home() {
 
       if (error) throw error;
 
+      // Immediately update UI state
       setHasSampleData(false);
+      setStats({
+        totalItems: 0,
+        expiringSoon: 0,
+        expired: 0,
+      });
+      setExpiringItems([]);
+      setMoneySaved(0);
+      setMoneyWasted(0);
+      
       toast({
         title: "Sample data cleared",
         description: "Ready to add your own items!",
       });
       
-      fetchData();
+      // Refresh from database
+      await fetchData();
     } catch (error: any) {
       console.error('Error clearing sample data:', error);
       toast({
         title: "Error",
-        description: "Failed to clear sample data",
+        description: error.message || "Failed to clear sample data",
         variant: "destructive",
       });
     } finally {
