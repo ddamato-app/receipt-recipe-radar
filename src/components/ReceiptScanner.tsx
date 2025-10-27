@@ -61,27 +61,47 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
       setStep('processing');
       
       try {
-        // Process with Tesseract first
-        const result = await Tesseract.recognize(
+        // Step 1: Initial OCR with English to get text for validation
+        const initialResult = await Tesseract.recognize(
           imageUrl,
-          'eng', // Start with English, will re-process if needed
+          'eng',
           {
             logger: (m) => {
               if (m.status === 'recognizing text') {
-                setProcessProgress(Math.round(m.progress * 100));
+                setProcessProgress(Math.round(m.progress * 50)); // First half
               }
             },
           }
         );
 
-        const ocrText = result.data.text;
+        let ocrText = initialResult.data.text;
         
         if (!ocrText || ocrText.trim().length < 10) {
           throw new Error('Could not extract text from image');
         }
         
-        // Validate text
+        // Step 2: Validate text and detect language/store
         const validation = validateReceiptText(ocrText);
+        const isCostco = ocrText.toLowerCase().includes('costco');
+        const detectedLanguage = validation.detectedLanguage || 'eng';
+        
+        // Step 3: Re-run OCR with proper language if needed
+        if (detectedLanguage === 'fra' || isCostco) {
+          const finalResult = await Tesseract.recognize(
+            imageUrl,
+            'fra+eng', // Bilingual for Quebec/Costco
+            {
+              logger: (m) => {
+                if (m.status === 'recognizing text') {
+                  setProcessProgress(50 + Math.round(m.progress * 50)); // Second half
+                }
+              },
+            }
+          );
+          ocrText = finalResult.data.text;
+        } else {
+          setProcessProgress(100); // Skip second pass
+        }
         
         // Handle validation errors
         if (!validation.isValid) {

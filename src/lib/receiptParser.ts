@@ -70,15 +70,16 @@ const STORE_PATTERNS: StorePattern[] = [
   },
 ];
 
-// Category keywords for auto-categorization
+// Category keywords for auto-categorization (English + French)
 const CATEGORY_KEYWORDS: Record<string, string[]> = {
-  'Dairy': ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'dairy'],
-  'Meat': ['chicken', 'beef', 'pork', 'turkey', 'meat', 'steak', 'bacon', 'sausage'],
-  'Fruits': ['apple', 'banana', 'orange', 'grape', 'berry', 'melon', 'fruit'],
-  'Vegetables': ['lettuce', 'tomato', 'carrot', 'broccoli', 'onion', 'pepper', 'veggie', 'vegetable'],
-  'Bakery': ['bread', 'roll', 'bagel', 'muffin', 'cake', 'pastry'],
-  'Beverages': ['juice', 'soda', 'water', 'coffee', 'tea', 'drink'],
+  'Dairy': ['milk', 'cheese', 'yogurt', 'butter', 'cream', 'dairy', 'lait', 'fromage', 'beurre', 'babybel', 'ricot', 'greek', 'grec'],
+  'Meat': ['chicken', 'beef', 'pork', 'turkey', 'meat', 'steak', 'bacon', 'sausage', 'poulet', 'boeuf', 'viande', 'jambon', 'ham'],
+  'Fruits': ['apple', 'banana', 'orange', 'grape', 'berry', 'melon', 'fruit', 'pomme', 'banan', 'fraise', 'cerise', 'cherr'],
+  'Vegetables': ['lettuce', 'tomato', 'carrot', 'broccoli', 'onion', 'pepper', 'veggie', 'vegetable', 'tomate', 'epinard', 'spinach', 'salade'],
+  'Bakery': ['bread', 'roll', 'bagel', 'muffin', 'cake', 'pastry', 'pain'],
+  'Beverages': ['juice', 'soda', 'water', 'coffee', 'tea', 'drink', 'jus', 'eau'],
   'Snacks': ['chip', 'cookie', 'cracker', 'candy', 'snack'],
+  'Eggs': ['egg', 'oeuf', 'oeufs'],
 };
 
 // Default expiry days by category
@@ -90,6 +91,7 @@ const CATEGORY_EXPIRY: Record<string, number> = {
   'Bakery': 5,
   'Beverages': 14,
   'Snacks': 30,
+  'Eggs': 14,
   'Other': 30,
 };
 
@@ -106,6 +108,36 @@ function detectStore(text: string): string {
   }
   
   return 'Unknown Store';
+}
+
+function cleanCostcoName(rawName: string): string {
+  let cleaned = rawName;
+  
+  // Remove Costco item codes at start (7 digits followed by letters)
+  cleaned = cleaned.replace(/^\d{7}[A-Z]*\s*/i, '');
+  
+  // Remove quantity codes at end (numbers + 1-2 letters like "110Z", "24CT")
+  cleaned = cleaned.replace(/\s*\d+[A-Z]{1,2}$/i, '');
+  
+  // Remove trailing flags (FP, -FP)
+  cleaned = cleaned.replace(/\s*-?FP$/i, '');
+  
+  // Expand Costco abbreviations
+  cleaned = cleaned.replace(/^KS\s/i, 'Kirkland ');
+  cleaned = cleaned.replace(/\sYOG\s/i, ' Yogurt ');
+  cleaned = cleaned.replace(/\sGREC\s/i, ' Greek ');
+  cleaned = cleaned.replace(/\sBIO\s/i, ' Organic ');
+  
+  // Clean up whitespace
+  cleaned = cleaned.trim().replace(/\s+/g, ' ');
+  
+  // Capitalize properly
+  cleaned = cleaned.toLowerCase()
+    .split(' ')
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+  
+  return cleaned;
 }
 
 function cleanItemName(rawName: string): string {
@@ -211,25 +243,50 @@ function parseItems(text: string, store: string): ParsedReceiptItem[] {
   const items: ParsedReceiptItem[] = [];
   const itemMap = new Map<string, { item: ParsedReceiptItem; count: number }>();
   
-  // Store-specific price patterns
-  const pricePatterns = [
-    /(.+?)\s*\$\s*(\d+\.\d{2})\s*$/,           // Standard: Item $XX.XX
-    /(.+?)\s+(\d+\.\d{2})\s*$/,                // No dollar sign: Item XX.XX
-    /(.+?)\s+\$?\s*(\d+\.\d{2})\s*[A-Z]*$/,   // With suffix codes
-  ];
+  // Check if this is a Costco receipt for special handling
+  const isCostco = store.toLowerCase().includes('costco');
   
-  // Words to skip (common receipt header/footer terms)
+  // Store-specific price patterns
+  const pricePatterns = isCostco 
+    ? [
+        /(.+?)\s+(\d+\.\d{2})\s*-?FP?$/i,        // Costco: Item XX.XX FP or XX.XX-FP
+        /(.+?)\s+(\d+\.\d{2})\s*$/,              // Costco: Item XX.XX
+      ]
+    : [
+        /(.+?)\s*\$\s*(\d+\.\d{2})\s*$/,         // Standard: Item $XX.XX
+        /(.+?)\s+(\d+\.\d{2})\s*$/,              // No dollar sign: Item XX.XX
+        /(.+?)\s+\$?\s*(\d+\.\d{2})\s*[A-Z]*$/,  // With suffix codes
+      ];
+  
+  // Words to skip (common receipt header/footer terms) - bilingual
   const skipWords = [
     'total', 'subtotal', 'tax', 'tps', 'tvq', 'hst', 'gst', 'pst',
     'change', 'cash', 'card', 'visa', 'mastercard', 'amex',
     'debit', 'credit', 'balance', 'tender', 'payment', 'receipt',
     'store', 'thank', 'welcome', 'sale', 'saved', 'coupon', 'discount',
-    'phone', 'address', 'member', 'cashier', 'transaction', 'date'
+    'phone', 'address', 'member', 'cashier', 'transaction', 'date',
+    'sous total', 'montant', 'quantup', 'member', 'no de', 'warehouse'
   ];
+  
+  // Track if we're in an ANNUL (canceled items) section for Costco
+  let inAnnulSection = false;
   
   for (const line of lines) {
     const trimmedLine = line.trim();
     if (!trimmedLine || trimmedLine.length < 3) continue;
+    
+    // Costco-specific: Handle ANNUL sections
+    if (isCostco) {
+      if (/annul/i.test(trimmedLine)) {
+        inAnnulSection = true;
+        continue;
+      }
+      if (/sous total|^total/i.test(trimmedLine)) {
+        inAnnulSection = false;
+        break; // Stop at totals section
+      }
+      if (inAnnulSection) continue; // Skip canceled items
+    }
     
     // Skip lines with common receipt terms
     const lowerLine = trimmedLine.toLowerCase();
@@ -245,11 +302,14 @@ function parseItems(text: string, store: string): ParsedReceiptItem[] {
         
         // Skip if name is too short or price is unreasonable
         if (rawName.length < 2) continue;
-        if (price < 0.25 || price > 150) continue; // Reasonable grocery item range
+        if (price < 0.25 || price > 200) continue; // Extended range for Costco bulk
         
-        // Clean up item name
-        const cleanName = cleanItemName(rawName);
+        // Clean up item name (use Costco-specific cleaning if applicable)
+        const cleanName = isCostco ? cleanCostcoName(rawName) : cleanItemName(rawName);
         if (!cleanName || cleanName.length < 2) continue;
+        
+        // Skip if cleaned name is only numbers or looks like garbage
+        if (/^\d+$/.test(cleanName)) continue;
         
         // Detect category
         const category = detectCategory(cleanName);
