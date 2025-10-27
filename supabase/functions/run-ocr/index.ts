@@ -65,7 +65,14 @@ async function runGoogleVisionOCR(imageBuffer: Uint8Array): Promise<OCRResult | 
   try {
     console.log('Calling Google Vision API...');
     
-    const base64Image = btoa(String.fromCharCode(...imageBuffer));
+    // Convert buffer to base64 (chunk to avoid stack overflow)
+    let binary = '';
+    const chunkSize = 8192;
+    for (let i = 0; i < imageBuffer.length; i += chunkSize) {
+      const chunk = imageBuffer.slice(i, i + chunkSize);
+      binary += String.fromCharCode(...chunk);
+    }
+    const base64Image = btoa(binary);
     
     const response = await fetch(
       `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
@@ -156,8 +163,14 @@ async function runOCR(imageBuffer: Uint8Array): Promise<OCRResult> {
   // Fallback to Tesseract with preprocessing
   console.log('Using Tesseract OCR...');
   
-  // Convert buffer to base64 for Tesseract.js API
-  const base64Image = btoa(String.fromCharCode(...imageBuffer));
+  // Convert buffer to base64 for Tesseract.js API (chunk to avoid stack overflow)
+  let binary = '';
+  const chunkSize = 8192;
+  for (let i = 0; i < imageBuffer.length; i += chunkSize) {
+    const chunk = imageBuffer.slice(i, i + chunkSize);
+    binary += String.fromCharCode(...chunk);
+  }
+  const base64Image = btoa(binary);
   const imageDataUrl = `data:image/png;base64,${base64Image}`;
   
   console.log('Pass 1: Full page OCR with PSM 6 (uniform block)...');
