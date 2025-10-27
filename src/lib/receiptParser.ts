@@ -110,8 +110,44 @@ function detectStore(text: string): string {
   return 'Unknown Store';
 }
 
+function cleanOCRErrors(text: string): string {
+  // Fix common OCR mistakes in receipts
+  const fixes: Record<string, string> = {
+    'FRAT5ES': 'FRAISES',
+    'FRATSEE': 'FRAISES',
+    'FRATS': 'FRAIS',
+    'CUTT': 'CUIT',
+    'K5': 'KS',
+    'NOG': 'YOG',
+    'GREE': 'GREC',
+    'GIJANTAK': 'QUANTUP',
+    'GLANTUY': 'QUANTUP',
+    'GALF': 'GALA',
+    'EPINARLS': 'EPINARDS',
+    'BARYBEL': 'BABYBEL',
+    'BLD': 'BIO',
+    'BANAN': 'BANANAS',
+    'CERISE5': 'CERISES',
+  };
+  
+  let cleaned = text;
+  for (const [wrong, right] of Object.entries(fixes)) {
+    cleaned = cleaned.replace(new RegExp(wrong, 'gi'), right);
+  }
+  
+  // Remove common noise patterns
+  cleaned = cleaned.replace(/\s*TRN\/\d+/gi, ''); // Remove TRN codes
+  cleaned = cleaned.replace(/\s*TP[NO]\/\d+/gi, ''); // Remove TP codes
+  cleaned = cleaned.trim();
+  
+  return cleaned;
+}
+
 function cleanCostcoName(rawName: string): string {
   let cleaned = rawName;
+  
+  // First clean OCR errors
+  cleaned = cleanOCRErrors(cleaned);
   
   // Remove Costco item codes at start (7 digits followed by letters)
   cleaned = cleaned.replace(/^\d{7}[A-Z]*\s*/i, '');
@@ -238,19 +274,49 @@ function detectCategory(itemName: string): string {
   return 'Other';
 }
 
+function preprocessCostcoText(rawText: string): string[] {
+  // For Costco receipts with messy OCR, try to extract items using pattern matching
+  const lines: string[] = [];
+  
+  // Pattern: [7 digits] [TEXT] [PRICE with comma or dot] optional(-FP or FP)
+  const itemPattern = /(\d{7}[A-Z]*)\s+([A-Z0-9\s\/\-]+?)\s+(\d+[,\.]\d{2})\s*-?FP?/gi;
+  const matches = [...rawText.matchAll(itemPattern)];
+  
+  for (const match of matches) {
+    const code = match[1];
+    const name = match[2].trim();
+    const price = match[3];
+    
+    // Skip if name is too short or looks like garbage
+    if (name.length < 2) continue;
+    
+    // Reconstruct the line in a clean format
+    lines.push(`${code} ${name} ${price} FP`);
+  }
+  
+  // If pattern matching found items, return those
+  if (lines.length > 0) {
+    return lines;
+  }
+  
+  // Otherwise fall back to line-by-line splitting
+  return rawText.split('\n').filter(line => line.trim().length > 0);
+}
+
 function parseItems(text: string, store: string): ParsedReceiptItem[] {
-  const lines = text.split('\n');
-  const items: ParsedReceiptItem[] = [];
   const itemMap = new Map<string, { item: ParsedReceiptItem; count: number }>();
   
   // Check if this is a Costco receipt for special handling
   const isCostco = store.toLowerCase().includes('costco');
   
-  // Store-specific price patterns
+  // Preprocess Costco receipts to handle messy OCR
+  const lines = isCostco ? preprocessCostcoText(text) : text.split('\n');
+  
+  // Store-specific price patterns (handle both comma and dot as decimal separator)
   const pricePatterns = isCostco 
     ? [
-        /(.+?)\s+(\d+\.\d{2})\s*-?FP?$/i,        // Costco: Item XX.XX FP or XX.XX-FP
-        /(.+?)\s+(\d+\.\d{2})\s*$/,              // Costco: Item XX.XX
+        /(.+?)\s+(\d+)[,\.](\d{2})\s*-?FP?$/i,   // Costco: Item XX,XX FP or XX.XX-FP
+        /(.+?)\s+(\d+)[,\.](\d{2})\s*$/,         // Costco: Item XX,XX or XX.XX
       ]
     : [
         /(.+?)\s*\$\s*(\d+\.\d{2})\s*$/,         // Standard: Item $XX.XX
@@ -265,7 +331,8 @@ function parseItems(text: string, store: string): ParsedReceiptItem[] {
     'debit', 'credit', 'balance', 'tender', 'payment', 'receipt',
     'store', 'thank', 'welcome', 'sale', 'saved', 'coupon', 'discount',
     'phone', 'address', 'member', 'cashier', 'transaction', 'date',
-    'sous total', 'montant', 'quantup', 'member', 'no de', 'warehouse'
+    'sous total', 'montant', 'quantup', 'member', 'no de', 'warehouse',
+    'approved', 'master', 'nombre', 'taxe', 'annul'
   ];
   
   // Track if we're in an ANNUL (canceled items) section for Costco
@@ -298,11 +365,15 @@ function parseItems(text: string, store: string): ParsedReceiptItem[] {
       const match = trimmedLine.match(pattern);
       if (match) {
         const rawName = match[1].trim();
-        const price = parseFloat(match[2]);
+        
+        // For Costco patterns with comma/dot separator, combine the digits
+        const price = isCostco && match[3] 
+          ? parseFloat(match[2] + '.' + match[3])
+          : parseFloat(match[2]);
         
         // Skip if name is too short or price is unreasonable
         if (rawName.length < 2) continue;
-        if (price < 0.25 || price > 200) continue; // Extended range for Costco bulk
+        if (price < 0.25 || price > 500) continue; // Extended range for Costco bulk
         
         // Clean up item name (use Costco-specific cleaning if applicable)
         const cleanName = isCostco ? cleanCostcoName(rawName) : cleanItemName(rawName);
