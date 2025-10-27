@@ -26,6 +26,7 @@ import AdminRecipes from "./pages/admin/Recipes";
 import AdminFeedback from "./pages/admin/Feedback";
 import AdminSettings from "./pages/admin/Settings";
 import AdminAnalytics from "./pages/admin/Analytics";
+import TestReceipt from "./pages/TestReceipt";
 
 const queryClient = new QueryClient();
 
@@ -65,6 +66,7 @@ const App = () => {
                       <Route path="/health" element={<Health />} />
                       <Route path="/shopping-assistant-setup" element={<ShoppingAssistantSetup />} />
                       <Route path="/shopping-mode" element={<ShoppingMode />} />
+                      <Route path="/test-receipt" element={<TestReceipt />} />
                       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>
