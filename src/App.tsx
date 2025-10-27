@@ -25,6 +25,7 @@ import AdminUsers from "./pages/admin/Users";
 import AdminRecipes from "./pages/admin/Recipes";
 import AdminFeedback from "./pages/admin/Feedback";
 import AdminSettings from "./pages/admin/Settings";
+import AdminAnalytics from "./pages/admin/Analytics";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => {
                   <Route path="users" element={<AdminUsers />} />
                   <Route path="recipes" element={<AdminRecipes />} />
                   <Route path="feedback" element={<AdminFeedback />} />
+                  <Route path="analytics" element={<AdminAnalytics />} />
                   <Route path="settings" element={<AdminSettings />} />
                 </Route>
 

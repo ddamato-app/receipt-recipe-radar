@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
-import { LayoutDashboard, Users, ChefHat, MessageSquare, Settings, LogOut, Package } from "lucide-react";
+import { LayoutDashboard, Users, ChefHat, MessageSquare, Settings, LogOut, Package, BarChart3 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
@@ -14,6 +14,7 @@ export const AdminLayout = () => {
     { icon: Users, label: "Users", path: "/admin/users" },
     { icon: ChefHat, label: "Recipes", path: "/admin/recipes" },
     { icon: MessageSquare, label: "Feedback", path: "/admin/feedback" },
+    { icon: BarChart3, label: "Analytics", path: "/admin/analytics" },
     { icon: Settings, label: "Settings", path: "/admin/settings" },
   ];
 
