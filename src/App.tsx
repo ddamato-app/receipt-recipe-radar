@@ -39,20 +39,14 @@ const App = () => {
             <AdminProvider>
               <Routes>
                 {/* Admin Routes */}
-                <Route path="/admin/*" element={
-                  <AdminRoute>
-                    <AdminLayout>
-                      <Routes>
-                        <Route path="dashboard" element={<AdminDashboard />} />
-                        <Route path="users" element={<AdminUsers />} />
-                        <Route path="recipes" element={<AdminRecipes />} />
-                        <Route path="feedback" element={<AdminFeedback />} />
-                        <Route path="settings" element={<AdminSettings />} />
-                        <Route path="*" element={<AdminDashboard />} />
-                      </Routes>
-                    </AdminLayout>
-                  </AdminRoute>
-                } />
+                <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
+                  <Route index element={<AdminDashboard />} />
+                  <Route path="dashboard" element={<AdminDashboard />} />
+                  <Route path="users" element={<AdminUsers />} />
+                  <Route path="recipes" element={<AdminRecipes />} />
+                  <Route path="feedback" element={<AdminFeedback />} />
+                  <Route path="settings" element={<AdminSettings />} />
+                </Route>
 
                 {/* Regular Routes */}
                 <Route path="*" element={

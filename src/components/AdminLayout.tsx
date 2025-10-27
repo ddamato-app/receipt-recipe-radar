@@ -1,10 +1,10 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, Outlet } from "react-router-dom";
 import { LayoutDashboard, Users, ChefHat, MessageSquare, Settings, LogOut, Package } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/AuthContext";
 import { cn } from "@/lib/utils";
 
-export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
+export const AdminLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { signOut } = useAuth();
@@ -81,7 +81,7 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
 
         {/* Page Content */}
         <main className="flex-1 p-6 overflow-auto">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>
