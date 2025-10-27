@@ -15,23 +15,20 @@ serve(async (req) => {
     
     if (!imageBase64) {
       return new Response(
-        JSON.stringify({ ok: false, error: "Missing imageBase64" }), 
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ ok: false, error: "MISSING_IMAGE_BASE64" }), 
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
-
-    // Strip data URL header if present
-    const cleanBase64 = imageBase64.startsWith("data:") 
-      ? imageBase64.split(",")[1] 
-      : imageBase64;
 
     const apiKey = Deno.env.get('GOOGLE_VISION_API_KEY');
     if (!apiKey) {
       return new Response(
-        JSON.stringify({ ok: false, error: "GOOGLE_VISION_API_KEY not configured" }), 
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ ok: false, error: "GOOGLE_VISION_API_KEY_NOT_CONFIGURED" }), 
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    console.log(`Calling Google Vision API with image length: ${imageBase64.length}`);
 
     const visionResponse = await fetch(
       `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
@@ -41,7 +38,7 @@ serve(async (req) => {
         body: JSON.stringify({
           requests: [
             {
-              image: { content: cleanBase64 },
+              image: { content: imageBase64 },
               features: [{ type: "DOCUMENT_TEXT_DETECTION" }],
               imageContext: { languageHints: ["en", "fr"] }
             }
@@ -54,8 +51,13 @@ serve(async (req) => {
       const errorText = await visionResponse.text();
       console.error('Vision API error:', visionResponse.status, errorText);
       return new Response(
-        JSON.stringify({ ok: false, error: `Vision API error: ${visionResponse.status}` }), 
-        { status: visionResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ 
+          ok: false, 
+          error: "VISION_API_ERROR", 
+          status: visionResponse.status,
+          details: errorText 
+        }), 
+        { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
@@ -86,15 +88,24 @@ serve(async (req) => {
     console.log(`Vision OCR completed: ${text.length} chars, confidence: ${confidence.toFixed(3)}`);
 
     return new Response(
-      JSON.stringify({ ok: true, engine: "vision", text, confidence }), 
+      JSON.stringify({ 
+        ok: true, 
+        engine: "vision", 
+        text, 
+        confidence 
+      }), 
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
 
   } catch (error) {
     console.error('Vision OCR error:', error);
     return new Response(
-      JSON.stringify({ ok: false, error: error instanceof Error ? error.message : 'Unknown error' }), 
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ 
+        ok: false, 
+        error: "VISION_OCR_EXCEPTION",
+        message: error instanceof Error ? error.message : 'Unknown error' 
+      }), 
+      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }
 });
