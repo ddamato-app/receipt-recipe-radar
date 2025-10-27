@@ -585,24 +585,42 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
             {/* Only show receipt details and items if NOT in test mode */}
             {!testParseMode && parsedReceipt && (
               <>
+            {/* Total Validation Warning */}
+            {parsedReceipt && !parsedReceipt.totalValidated && (
+              <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  <strong>Total mismatch detected:</strong> Receipt shows ${parsedReceipt.total.toFixed(2)}, 
+                  but calculated ${editedItems.filter(i => i.itemType === 'product').reduce((sum, i) => sum + i.price, 0).toFixed(2)}
+                  {parsedReceipt.totalMismatch && ` (difference: $${parsedReceipt.totalMismatch.toFixed(2)})`}.
+                  Please verify item prices below.
+                </AlertDescription>
+              </Alert>
+            )}
+            
             <Card className="p-4 bg-muted/50">
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <p className="font-semibold">{parsedReceipt.store}</p>
                   <p className="text-sm text-muted-foreground">{parsedReceipt.date}</p>
                 </div>
-                <Badge variant="outline" className="text-lg">
-                  {editedItems.length} items
-                </Badge>
+                <div className="text-right">
+                  <Badge variant="outline" className="text-lg mb-1">
+                    {editedItems.length} items
+                  </Badge>
+                  <p className="text-xs text-muted-foreground">Total: ${parsedReceipt.total.toFixed(2)}</p>
+                </div>
               </div>
             </Card>
 
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {editedItems.map((item) => (
-                <Card key={item.id} className={`p-4 ${
+                <Card key={item.id} className={cn(
+                  "p-4 border-2",
+                  item.needsReview ? 'border-yellow-500 bg-yellow-50 dark:bg-yellow-950/20' :
                   item.confidence === 'low' ? 'border-destructive/50' : 
                   item.confidence === 'medium' ? 'border-warning/50' : ''
-                }`}>
+                )}>
                   <div className="flex items-start gap-3">
                     <Checkbox
                       checked={item.selected}
@@ -612,15 +630,26 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
                     <div className="flex-1 space-y-3">
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex-1 space-y-2">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <Input
                               value={item.name}
                               onChange={(e) => handleUpdateItem(item.id, 'name', e.target.value)}
-                              className="flex-1"
+                              className="flex-1 min-w-[180px]"
                             />
                             {item.quantity > 1 && (
                               <Badge variant="secondary" className="shrink-0">
                                 {item.quantity}x
+                              </Badge>
+                            )}
+                            {item.needsReview && (
+                              <Badge variant="outline" className="text-yellow-600 dark:text-yellow-400 border-yellow-600 dark:border-yellow-400 shrink-0">
+                                <AlertCircle className="w-3 h-3 mr-1" />
+                                Review
+                              </Badge>
+                            )}
+                            {item.itemType !== 'product' && (
+                              <Badge variant="secondary" className="shrink-0">
+                                {item.itemType}
                               </Badge>
                             )}
                             {item.confidence === 'high' && (
@@ -642,6 +671,11 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
                               </Badge>
                             )}
                           </div>
+                          {item.needsReview && item.reviewReason && (
+                            <p className="text-xs text-yellow-700 dark:text-yellow-300">
+                              ⚠️ {item.reviewReason}
+                            </p>
+                          )}
                           {item.rawName && item.rawName !== item.name && (
                             <p className="text-xs text-muted-foreground">
                               Original: {item.rawName}
