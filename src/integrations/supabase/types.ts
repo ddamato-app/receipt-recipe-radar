@@ -110,6 +110,63 @@ export type Database = {
         }
         Relationships: []
       }
+      receipt_parses: {
+        Row: {
+          created_at: string
+          currency: string
+          date: string | null
+          discounts: Json
+          id: string
+          items: Json
+          needs_review: boolean
+          raw_text: string | null
+          review_reasons: string[] | null
+          store_id: string | null
+          subtotal: number | null
+          tax_total: number | null
+          total: number | null
+          updated_at: string
+          user_id: string
+          vendor: string | null
+        }
+        Insert: {
+          created_at?: string
+          currency?: string
+          date?: string | null
+          discounts?: Json
+          id?: string
+          items?: Json
+          needs_review?: boolean
+          raw_text?: string | null
+          review_reasons?: string[] | null
+          store_id?: string | null
+          subtotal?: number | null
+          tax_total?: number | null
+          total?: number | null
+          updated_at?: string
+          user_id: string
+          vendor?: string | null
+        }
+        Update: {
+          created_at?: string
+          currency?: string
+          date?: string | null
+          discounts?: Json
+          id?: string
+          items?: Json
+          needs_review?: boolean
+          raw_text?: string | null
+          review_reasons?: string[] | null
+          store_id?: string | null
+          subtotal?: number | null
+          tax_total?: number | null
+          total?: number | null
+          updated_at?: string
+          user_id?: string
+          vendor?: string | null
+        }
+        Relationships: []
+      }
       user_roles: {
         Row: {
           created_at: string | null
