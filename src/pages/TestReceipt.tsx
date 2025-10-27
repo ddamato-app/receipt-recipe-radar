@@ -6,10 +6,11 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Camera, Upload, CheckCircle2, AlertCircle, FileText, TrendingUp } from 'lucide-react';
-import Tesseract from 'tesseract.js';
-import { parseReceiptText, type ParsedReceipt } from '@/lib/receiptParser';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Camera, Upload, CheckCircle2, AlertCircle, FileText, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import type { ParsedReceipt, ReceiptItem } from '@/types/receipt';
 
 interface TestResult {
   id: string;
@@ -55,6 +56,32 @@ const SAMPLE_RECEIPTS = [
   },
 ];
 
+// Discounts collapsible component
+function DiscountsSection({ discounts }: { discounts: Array<{ label: string; amount: number }> }) {
+  const [isOpen, setIsOpen] = useState(false);
+  
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger className="flex items-center justify-between w-full">
+        <h3 className="font-semibold">Discounts ({discounts.length})</h3>
+        {isOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+      </CollapsibleTrigger>
+      <CollapsibleContent className="mt-4">
+        <div className="space-y-2">
+          {discounts.map((discount, idx) => (
+            <div key={idx} className="flex justify-between items-center p-2 border rounded">
+              <span className="text-sm text-muted-foreground">{discount.label}</span>
+              <span className="font-semibold text-green-600">
+                ${Math.abs(discount.amount).toFixed(2)}
+              </span>
+            </div>
+          ))}
+        </div>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+}
+
 export default function TestReceipt() {
   const [testing, setTesting] = useState(false);
   const [currentTest, setCurrentTest] = useState<TestResult | null>(null);
@@ -67,42 +94,48 @@ export default function TestReceipt() {
     setOcrProgress(0);
     
     try {
-      // Run OCR
-      const result = await Tesseract.recognize(
-        imageUrl,
-        'eng',
-        {
-          logger: (m) => {
-            if (m.status === 'recognizing text') {
-              setOcrProgress(Math.round(m.progress * 100));
-            }
-          },
-        }
-      );
+      // Convert image URL to base64 if needed
+      let base64Image = imageUrl;
+      if (!imageUrl.startsWith('data:')) {
+        const response = await fetch(imageUrl);
+        const blob = await response.blob();
+        base64Image = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      }
 
-      const ocrText = result.data.text;
+      // Extract base64 content (remove data URL prefix)
+      const base64Content = base64Image.split(',')[1];
       
-      // Parse the receipt
-      const parsedData = parseReceiptText(ocrText);
+      setOcrProgress(50);
+
+      // Call edge function
+      const { data: parsedData, error } = await supabase.functions.invoke('parse-receipt', {
+        body: { image: base64Content },
+      });
+
+      if (error) throw error;
       
+      setOcrProgress(100);
+
       // Calculate metrics
       const itemsDetected = parsedData.items.length;
-      const itemsWithPrices = parsedData.items.filter(item => item.price > 0).length;
-      const itemsWithCategories = parsedData.items.filter(item => item.category !== 'Other').length;
-      const highConfidence = parsedData.items.filter(item => item.confidence === 'high').length;
+      const itemsNeedingReview = parsedData.items.filter((item: ReceiptItem) => 
+        item.needs_review || (item.ocr_confidence && item.ocr_confidence < 0.8)
+      ).length;
       
-      const successRate = itemsDetected > 0 
-        ? Math.round(((itemsWithPrices + itemsWithCategories + highConfidence) / (itemsDetected * 3)) * 100)
-        : 0;
+      const successRate = parsedData.needs_review ? 50 : 85;
 
       const testResult: TestResult = {
-        id: Math.random().toString(36).substring(7),
+        id: parsedData.id || Math.random().toString(36).substring(7),
         timestamp: new Date(),
-        store: storeName,
+        store: parsedData.vendor || storeName,
         itemsDetected,
         successRate,
         receiptImage: imageUrl,
-        ocrText,
+        ocrText: parsedData.raw_text || '',
         parsedData,
       };
 
@@ -111,14 +144,14 @@ export default function TestReceipt() {
       
       toast({
         title: 'Test Complete',
-        description: `Found ${itemsDetected} items with ${successRate}% success rate`,
+        description: `Found ${itemsDetected} items${itemsNeedingReview > 0 ? ` (${itemsNeedingReview} need review)` : ''}`,
       });
       
     } catch (error) {
       console.error('Test failed:', error);
       toast({
         title: 'Test Failed',
-        description: 'Could not process receipt image',
+        description: error instanceof Error ? error.message : 'Could not process receipt image',
         variant: 'destructive',
       });
     } finally {
@@ -318,25 +351,24 @@ export default function TestReceipt() {
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Items with Prices</span>
                       <Badge variant="outline">
-                        {currentTest.parsedData.items.filter(i => i.price > 0).length}
+                        {currentTest.parsedData.items.filter(i => i.price_total > 0).length}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm">Items Categorized</span>
                       <Badge variant="outline">
-                        {currentTest.parsedData.items.filter(i => i.category !== 'Other').length}
+                        {currentTest.parsedData.items.filter(i => i.category).length}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between">
                       <span className="text-sm">High Confidence</span>
                       <Badge variant="outline">
-                        {currentTest.parsedData.items.filter(i => i.confidence === 'high').length}
+                        {currentTest.parsedData.items.filter(i => (i.ocr_confidence || 0) >= 0.8).length}
                       </Badge>
                     </div>
                     <div className="flex items-center justify-between pt-2 border-t">
                       <span className="font-semibold">Success Rate</span>
                       <Badge variant={currentTest.successRate >= 70 ? 'default' : 'secondary'}>
-                        <TrendingUp className="w-3 h-3 mr-1" />
                         {currentTest.successRate}%
                       </Badge>
                     </div>
@@ -345,7 +377,7 @@ export default function TestReceipt() {
 
                 <Card className="p-4">
                   <h3 className="font-semibold mb-4">Detected Store</h3>
-                  <div className="text-2xl font-bold">{currentTest.parsedData.store}</div>
+                  <div className="text-2xl font-bold">{currentTest.parsedData.vendor || 'Unknown'}</div>
                   <p className="text-sm text-muted-foreground">{currentTest.parsedData.date}</p>
                 </Card>
               </div>
@@ -361,42 +393,123 @@ export default function TestReceipt() {
               </ScrollArea>
             </Card>
 
-            {/* Parsed Items */}
+            {/* Item Table */}
             <Card className="p-4">
-              <h3 className="font-semibold mb-4">Parsed Items ({currentTest.parsedData.items.length})</h3>
+              <h3 className="font-semibold mb-4">Items ({currentTest.parsedData.items.length})</h3>
               <ScrollArea className="h-96">
-                <div className="space-y-2">
-                  {currentTest.parsedData.items.map((item) => (
-                    <div key={item.id} className="flex items-center justify-between p-3 border rounded-lg">
-                      <div className="flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="font-medium">{item.name}</span>
-                          {item.confidence === 'high' && (
-                            <CheckCircle2 className="w-4 h-4 text-green-600" />
-                          )}
-                          {item.confidence === 'low' && (
-                            <AlertCircle className="w-4 h-4 text-destructive" />
-                          )}
-                        </div>
-                        {item.rawName && item.rawName !== item.name && (
-                          <p className="text-xs text-muted-foreground">Raw: {item.rawName}</p>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <Badge variant="outline">{item.category}</Badge>
-                        <span className="font-semibold">${item.price.toFixed(2)}</span>
-                        <Badge variant={
-                          item.confidence === 'high' ? 'default' : 
-                          item.confidence === 'medium' ? 'secondary' : 
-                          'destructive'
-                        }>
-                          {item.confidence}
-                        </Badge>
-                      </div>
-                    </div>
-                  ))}
-                </div>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Brand</TableHead>
+                      <TableHead className="text-right">Qty</TableHead>
+                      <TableHead className="text-right">Price</TableHead>
+                      <TableHead>Expiry</TableHead>
+                      <TableHead className="text-right">Confidence</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {currentTest.parsedData.items.map((item, idx) => {
+                      const needsReview = item.needs_review || (item.ocr_confidence && item.ocr_confidence < 0.8);
+                      
+                      return (
+                        <TableRow key={idx} className={needsReview ? 'bg-yellow-50 dark:bg-yellow-950/20' : ''}>
+                          <TableCell className="font-medium">
+                            <div className="flex items-center gap-2">
+                              {needsReview && (
+                                <AlertTriangle className="w-4 h-4 text-yellow-600 dark:text-yellow-500" />
+                              )}
+                              {item.name}
+                            </div>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {item.brand || '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            {item.qty || 1}
+                            {item.unit && ` ${item.unit}`}
+                          </TableCell>
+                          <TableCell className="text-right font-semibold">
+                            ${item.price_total.toFixed(2)}
+                          </TableCell>
+                          <TableCell>
+                            {item.expires_on ? new Date(item.expires_on).toLocaleDateString() : '-'}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Badge variant={
+                              (item.ocr_confidence || 0) >= 0.8 ? 'default' : 'secondary'
+                            }>
+                              {((item.ocr_confidence || 0.85) * 100).toFixed(0)}%
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
               </ScrollArea>
+            </Card>
+
+            {/* Discounts (Collapsible) */}
+            {currentTest.parsedData.discounts && currentTest.parsedData.discounts.length > 0 && (
+              <Card className="p-4">
+                <DiscountsSection discounts={currentTest.parsedData.discounts} />
+              </Card>
+            )}
+
+            {/* Totals Card */}
+            <Card className="p-6">
+              <h3 className="font-semibold mb-4 flex items-center gap-2">
+                Financial Summary
+                {!currentTest.parsedData.needs_review && (
+                  <CheckCircle2 className="w-5 h-5 text-green-600" />
+                )}
+              </h3>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Subtotal</span>
+                  <span className="font-semibold">
+                    ${(currentTest.parsedData.subtotal || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-muted-foreground">Tax</span>
+                  <span className="font-semibold">
+                    ${(currentTest.parsedData.tax_total || 0).toFixed(2)}
+                  </span>
+                </div>
+                <div className="h-px bg-border" />
+                <div className="flex justify-between items-center text-lg">
+                  <span className="font-semibold">Total</span>
+                  <span className="font-bold">
+                    ${(currentTest.parsedData.total || 0).toFixed(2)}
+                  </span>
+                </div>
+                
+                {/* Validation Status */}
+                <div className="mt-4 pt-4 border-t">
+                  {!currentTest.parsedData.needs_review ? (
+                    <div className="flex items-center gap-2 text-green-600 dark:text-green-500">
+                      <CheckCircle2 className="w-5 h-5" />
+                      <span className="font-medium">Validation Passed</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-yellow-600 dark:text-yellow-500">
+                        <AlertTriangle className="w-5 h-5" />
+                        <span className="font-medium">Needs Review</span>
+                      </div>
+                      {currentTest.parsedData.review_reasons && currentTest.parsedData.review_reasons.length > 0 && (
+                        <ul className="text-sm text-muted-foreground space-y-1 ml-7">
+                          {currentTest.parsedData.review_reasons.map((reason, idx) => (
+                            <li key={idx}>• {reason}</li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
             </Card>
           </div>
         )}
