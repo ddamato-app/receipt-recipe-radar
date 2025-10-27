@@ -6,7 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Checkbox } from '@/components/ui/checkbox';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Camera, Upload, X, AlertCircle, CheckCircle2, Trash2 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Loader2, Camera, Upload, X, AlertCircle, CheckCircle2, Trash2, Mail } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { parseReceiptText, type ParsedReceiptItem, type ParsedReceipt } from '@/lib/receiptParser';
@@ -215,32 +216,82 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
 
         {/* Upload Step */}
         {step === 'upload' && (
-          <div className="space-y-4 py-6">
-            <div className="border-2 border-dashed border-border rounded-lg p-8 text-center">
-              <Camera className="w-12 h-12 mx-auto mb-4 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground mb-4">
-                Take a photo or upload an image of your receipt
-              </p>
-              <Input
-                type="file"
-                accept="image/jpeg,image/png,image/heic"
-                onChange={handleFileInput}
-                className="hidden"
-                id="receipt-upload"
-              />
-              <label htmlFor="receipt-upload">
-                <Button asChild>
-                  <span className="cursor-pointer">
-                    <Upload className="w-4 h-4 mr-2" />
-                    Choose Image
-                  </span>
-                </Button>
-              </label>
-              <p className="text-xs text-muted-foreground mt-4">
-                Max file size: 10MB • Formats: JPG, PNG, HEIC
-              </p>
-            </div>
-          </div>
+          <Tabs defaultValue="upload" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="upload">
+                <Camera className="w-4 h-4 mr-2" />
+                Upload Photo
+              </TabsTrigger>
+              <TabsTrigger value="email">
+                <Mail className="w-4 h-4 mr-2" />
+                Forward Email
+              </TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="upload" className="space-y-4 py-4">
+              <div className="border-2 border-dashed border-border rounded-lg p-8 text-center hover:border-primary/50 transition-colors">
+                <Camera className="w-16 h-16 mx-auto mb-4 text-muted-foreground" />
+                <p className="text-lg font-medium mb-2">
+                  📸 Tap to take photo or upload receipt
+                </p>
+                <p className="text-sm text-muted-foreground mb-6">
+                  We'll extract items, prices, and dates automatically
+                </p>
+                <Input
+                  type="file"
+                  accept="image/jpeg,image/png,image/heic"
+                  capture="environment"
+                  onChange={handleFileInput}
+                  className="hidden"
+                  id="receipt-upload"
+                />
+                <label htmlFor="receipt-upload">
+                  <Button asChild size="lg">
+                    <span className="cursor-pointer">
+                      <Upload className="w-4 h-4 mr-2" />
+                      Choose Image
+                    </span>
+                  </Button>
+                </label>
+                <p className="text-xs text-muted-foreground mt-4">
+                  Max file size: 10MB • Formats: JPG, PNG, HEIC
+                </p>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="email" className="space-y-4 py-4">
+              <Card className="p-6">
+                <div className="text-center space-y-4">
+                  <Mail className="w-16 h-16 mx-auto text-primary" />
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Forward Receipt Emails</h3>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Send your receipt emails to:
+                    </p>
+                    <div className="bg-muted p-3 rounded-lg mb-4">
+                      <code className="text-sm font-mono">receipts@freshtrack.app</code>
+                    </div>
+                  </div>
+                  
+                  <div className="bg-muted/50 p-4 rounded-lg text-left space-y-2">
+                    <p className="text-sm font-medium">How it works:</p>
+                    <ol className="text-sm text-muted-foreground space-y-1 list-decimal list-inside">
+                      <li>Forward your receipt email to the address above</li>
+                      <li>We'll process it and extract the items</li>
+                      <li>Usually takes 1-2 minutes</li>
+                      <li>Items appear in your fridge automatically</li>
+                    </ol>
+                  </div>
+
+                  <div className="pt-4">
+                    <Badge variant="outline" className="text-sm">
+                      No pending receipts
+                    </Badge>
+                  </div>
+                </div>
+              </Card>
+            </TabsContent>
+          </Tabs>
         )}
 
         {/* Processing Step */}
@@ -259,7 +310,16 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
               <Loader2 className="w-12 h-12 animate-spin mx-auto text-primary" />
               <div>
                 <p className="text-lg font-medium">Reading your receipt... 📄</p>
-                <p className="text-sm text-muted-foreground">Processing: {processProgress}%</p>
+                <p className="text-sm text-muted-foreground">This may take 30-60 seconds</p>
+                <div className="mt-4">
+                  <div className="w-full bg-muted rounded-full h-2">
+                    <div 
+                      className="bg-primary h-2 rounded-full transition-all duration-300"
+                      style={{ width: `${processProgress}%` }}
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-2">{processProgress}% complete</p>
+                </div>
               </div>
             </div>
           </div>
@@ -393,29 +453,52 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
         {step === 'error' && (
           <div className="space-y-4 py-6">
             <div className="text-center space-y-4">
-              <AlertCircle className="w-12 h-12 mx-auto text-destructive" />
+              <AlertCircle className="w-16 h-16 mx-auto text-destructive" />
               <div>
-                <p className="text-lg font-medium mb-2">😕 Couldn't read receipt</p>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto">
+                <p className="text-xl font-semibold mb-2">😔 We couldn't read this receipt clearly</p>
+                <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
                   {errorMessage}
                 </p>
               </div>
               
-              <div className="bg-muted p-4 rounded-lg text-left max-w-md mx-auto">
-                <p className="text-sm font-medium mb-2">Try:</p>
-                <ul className="text-sm text-muted-foreground space-y-1 list-disc list-inside">
-                  <li>Taking a clearer photo</li>
-                  <li>Better lighting</li>
-                  <li>Flattening the receipt</li>
-                  <li>Uploading a different format</li>
+              <Card className="bg-muted/50 p-6 text-left max-w-md mx-auto">
+                <p className="text-sm font-semibold mb-3">Try these tips:</p>
+                <ul className="text-sm text-muted-foreground space-y-2">
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>Take photo in good lighting</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>Ensure receipt is flat and in focus</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>Make sure all text is visible</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>Avoid shadows and glare</span>
+                  </li>
                 </ul>
-              </div>
+              </Card>
             </div>
 
-            <div className="flex gap-2">
-              <Button variant="outline" onClick={handleReset} className="flex-1">
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Button variant="outline" onClick={handleReset} className="flex-1" size="lg">
                 <Camera className="w-4 h-4 mr-2" />
-                Try Again
+                Try Another Photo
+              </Button>
+              <Button 
+                variant="secondary" 
+                onClick={() => {
+                  onOpenChange(false);
+                  handleReset();
+                }} 
+                className="flex-1"
+                size="lg"
+              >
+                Add Items Manually Instead
               </Button>
             </div>
           </div>
