@@ -11,6 +11,7 @@ import { Loader2, Camera, Upload, X, AlertCircle, CheckCircle2, Trash2, Mail, Sh
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { parseReceiptText, type ParsedReceiptItem, type ParsedReceipt } from '@/lib/receiptParser';
+import { validateReceiptText } from '@/lib/receiptValidation';
 import Tesseract from 'tesseract.js';
 import { addDays, format } from 'date-fns';
 
@@ -20,7 +21,7 @@ interface ReceiptScannerProps {
   onSuccess?: () => void;
 }
 
-type ScanStep = 'upload' | 'processing' | 'review' | 'error';
+type ScanStep = 'upload' | 'processing' | 'review' | 'error' | 'warning';
 
 export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScannerProps) {
   const [step, setStep] = useState<ScanStep>('upload');
@@ -30,6 +31,8 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
   const [editedItems, setEditedItems] = useState<ParsedReceiptItem[]>([]);
   const [isAdding, setIsAdding] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [errorSuggestion, setErrorSuggestion] = useState('');
+  const [warningMessages, setWarningMessages] = useState<string[]>([]);
   const { toast } = useToast();
 
   const handleImageSelect = async (file: File) => {
@@ -58,10 +61,10 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
       setStep('processing');
       
       try {
-        // Process with Tesseract
+        // Process with Tesseract first
         const result = await Tesseract.recognize(
           imageUrl,
-          'eng',
+          'eng', // Start with English, will re-process if needed
           {
             logger: (m) => {
               if (m.status === 'recognizing text') {
@@ -76,12 +79,36 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
         if (!ocrText || ocrText.trim().length < 10) {
           throw new Error('Could not extract text from image');
         }
+        
+        // Validate text
+        const validation = validateReceiptText(ocrText);
+        
+        // Handle validation errors
+        if (!validation.isValid) {
+          const errorIssue = validation.issues.find(issue => issue.type === 'error');
+          if (errorIssue) {
+            setErrorMessage(errorIssue.message);
+            setErrorSuggestion(errorIssue.suggestion);
+            setStep('error');
+            return;
+          }
+        }
+        
+        // Handle warnings but continue processing
+        const warnings = validation.issues
+          .filter(issue => issue.type === 'warning')
+          .map(issue => issue.message);
+        
+        if (warnings.length > 0) {
+          setWarningMessages(warnings);
+        }
 
         // Parse the OCR text
         const parsed = parseReceiptText(ocrText);
         
         if (parsed.items.length === 0) {
-          setErrorMessage('No items found in this receipt. Try taking a clearer photo or using a different receipt.');
+          setErrorMessage('We couldn\'t find any items in this receipt');
+          setErrorSuggestion('This might not be a grocery receipt. Supported: Grocery stores and supermarkets. Not supported: Restaurants, gas stations.');
           setStep('error');
           return;
         }
@@ -92,7 +119,8 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
         
       } catch (error) {
         console.error('OCR Error:', error);
-        setErrorMessage('We couldn\'t read your receipt clearly. Please try again with better lighting or a clearer image.');
+        setErrorMessage('We couldn\'t read your receipt clearly');
+        setErrorSuggestion('Please try again with better lighting, flatter receipt, and ensure all text is visible and in focus.');
         setStep('error');
       }
     };
@@ -114,6 +142,8 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
     setParsedReceipt(null);
     setEditedItems([]);
     setErrorMessage('');
+    setErrorSuggestion('');
+    setWarningMessages([]);
   };
 
   const handleToggleItem = (itemId: string) => {
@@ -328,6 +358,28 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
         {/* Review Step */}
         {step === 'review' && parsedReceipt && (
           <div className="space-y-4">
+            {/* Warnings Banner */}
+            {warningMessages.length > 0 && (
+              <Card className="p-4 border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-semibold text-amber-900 dark:text-amber-100 mb-2">
+                      Possible Issues Detected
+                    </p>
+                    <ul className="text-sm text-amber-800 dark:text-amber-200 space-y-1">
+                      {warningMessages.map((warning, idx) => (
+                        <li key={idx}>• {warning}</li>
+                      ))}
+                    </ul>
+                    <p className="text-xs text-amber-700 dark:text-amber-300 mt-2">
+                      Review items below and make corrections as needed
+                    </p>
+                  </div>
+                </div>
+              </Card>
+            )}
+            
             <Card className="p-4 bg-muted/50">
               <div className="flex items-center justify-between mb-2">
                 <div>
@@ -361,6 +413,11 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
                               onChange={(e) => handleUpdateItem(item.id, 'name', e.target.value)}
                               className="flex-1"
                             />
+                            {item.quantity > 1 && (
+                              <Badge variant="secondary" className="shrink-0">
+                                {item.quantity}x
+                              </Badge>
+                            )}
                             {item.confidence === 'high' && (
                               <Badge variant="outline" className="text-green-600 border-green-600 shrink-0">
                                 <CheckCircle2 className="w-3 h-3 mr-1" />
@@ -485,14 +542,16 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
             <div className="text-center space-y-4">
               <AlertCircle className="w-16 h-16 mx-auto text-destructive" />
               <div>
-                <p className="text-xl font-semibold mb-2">😔 We couldn't read this receipt clearly</p>
-                <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
-                  {errorMessage}
-                </p>
+                <p className="text-xl font-semibold mb-2">😔 {errorMessage}</p>
+                {errorSuggestion && (
+                  <p className="text-sm text-muted-foreground max-w-md mx-auto mb-4">
+                    {errorSuggestion}
+                  </p>
+                )}
               </div>
               
               <Card className="bg-muted/50 p-6 text-left max-w-md mx-auto">
-                <p className="text-sm font-semibold mb-3">Try these tips:</p>
+                <p className="text-sm font-semibold mb-3">Tips for better results:</p>
                 <ul className="text-sm text-muted-foreground space-y-2">
                   <li className="flex items-start gap-2">
                     <span className="text-primary">•</span>
@@ -509,6 +568,10 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
                   <li className="flex items-start gap-2">
                     <span className="text-primary">•</span>
                     <span>Avoid shadows and glare</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-primary">•</span>
+                    <span>Hold camera steady to avoid blur</span>
                   </li>
                 </ul>
               </Card>

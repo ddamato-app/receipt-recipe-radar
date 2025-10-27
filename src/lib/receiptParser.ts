@@ -17,6 +17,7 @@ export interface ParsedReceipt {
   date: string;
   total: number;
   items: ParsedReceiptItem[];
+  warnings?: string[];
 }
 
 // Store-specific detection patterns
@@ -208,6 +209,7 @@ function detectCategory(itemName: string): string {
 function parseItems(text: string, store: string): ParsedReceiptItem[] {
   const lines = text.split('\n');
   const items: ParsedReceiptItem[] = [];
+  const itemMap = new Map<string, { item: ParsedReceiptItem; count: number }>();
   
   // Store-specific price patterns
   const pricePatterns = [
@@ -255,17 +257,27 @@ function parseItems(text: string, store: string): ParsedReceiptItem[] {
         // Calculate confidence
         const confidence = calculateConfidence(cleanName, rawName, price, category);
         
-        items.push({
-          id: Math.random().toString(36).substring(7),
-          name: cleanName,
-          rawName: rawName,
-          price: price,
-          quantity: 1,
-          category: category,
-          expiryDays: CATEGORY_EXPIRY[category] || 30,
-          selected: true,
-          confidence: confidence,
-        });
+        // Check for duplicates (same name, combine them)
+        const lowerCleanName = cleanName.toLowerCase();
+        if (itemMap.has(lowerCleanName)) {
+          const existing = itemMap.get(lowerCleanName)!;
+          existing.count += 1;
+          existing.item.quantity = existing.count;
+          existing.item.price += price;
+        } else {
+          const newItem: ParsedReceiptItem = {
+            id: Math.random().toString(36).substring(7),
+            name: cleanName,
+            rawName: rawName,
+            price: price,
+            quantity: 1,
+            category: category,
+            expiryDays: CATEGORY_EXPIRY[category] || 30,
+            selected: true,
+            confidence: confidence,
+          };
+          itemMap.set(lowerCleanName, { item: newItem, count: 1 });
+        }
         
         matched = true;
         break;
@@ -273,8 +285,11 @@ function parseItems(text: string, store: string): ParsedReceiptItem[] {
     }
   }
   
+  // Convert map to array
+  const uniqueItems = Array.from(itemMap.values()).map(({ item }) => item);
+  
   // Sort by confidence (high first) for better user experience
-  return items.sort((a, b) => {
+  return uniqueItems.sort((a, b) => {
     const confidenceOrder = { high: 0, medium: 1, low: 2 };
     return confidenceOrder[a.confidence] - confidenceOrder[b.confidence];
   });
