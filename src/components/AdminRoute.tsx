@@ -3,10 +3,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useAdmin } from "@/contexts/AdminContext";
 
 export const AdminRoute = ({ children }: { children: React.ReactNode }) => {
-  const { user, loading: authLoading } = useAuth() as { user: any; loading: boolean };
+  const { user, isLoading } = useAuth();
   const { isAdmin, loading } = useAdmin();
 
-  if (authLoading || loading) {
+  if (isLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
