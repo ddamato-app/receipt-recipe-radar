@@ -33,6 +33,8 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
   const [errorMessage, setErrorMessage] = useState('');
   const [errorSuggestion, setErrorSuggestion] = useState('');
   const [warningMessages, setWarningMessages] = useState<string[]>([]);
+  const [ocrDebugText, setOcrDebugText] = useState('');
+  const [showDebug, setShowDebug] = useState(false);
   const { toast } = useToast();
 
   const handleImageSelect = async (file: File) => {
@@ -123,6 +125,9 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
           setWarningMessages(warnings);
         }
 
+        // Store OCR text for debugging
+        setOcrDebugText(ocrText);
+        
         // Parse the OCR text
         const parsed = parseReceiptText(ocrText);
         
@@ -164,6 +169,8 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
     setErrorMessage('');
     setErrorSuggestion('');
     setWarningMessages([]);
+    setOcrDebugText('');
+    setShowDebug(false);
   };
 
   const handleToggleItem = (itemId: string) => {
@@ -378,6 +385,58 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
         {/* Review Step */}
         {step === 'review' && parsedReceipt && (
           <div className="space-y-4">
+            {/* OCR Debug Panel */}
+            {ocrDebugText && (
+              <Card className="p-4 border-blue-500/50 bg-blue-50 dark:bg-blue-950/20">
+                <div className="space-y-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowDebug(!showDebug)}
+                    className="w-full justify-between"
+                  >
+                    <span className="font-semibold text-blue-900 dark:text-blue-100">
+                      🔍 OCR Debug Info
+                    </span>
+                    <span className="text-xs text-blue-700 dark:text-blue-300">
+                      {showDebug ? 'Hide' : 'Show'}
+                    </span>
+                  </Button>
+                  
+                  {showDebug && (
+                    <div className="text-sm text-blue-800 dark:text-blue-200 space-y-2 pt-2 border-t border-blue-200 dark:border-blue-800">
+                      <div className="grid grid-cols-2 gap-2">
+                        <div>
+                          <span className="font-medium">Text Length:</span> {ocrDebugText.length}
+                        </div>
+                        <div>
+                          <span className="font-medium">Lines:</span> {ocrDebugText.split('\n').length}
+                        </div>
+                        <div>
+                          <span className="font-medium">Prices Found:</span> {[...ocrDebugText.matchAll(/\d+[,\.]\d{2}/g)].length}
+                        </div>
+                        <div>
+                          <span className="font-medium">Item Codes:</span> {[...ocrDebugText.matchAll(/\d{7}/g)].length}
+                        </div>
+                      </div>
+                      
+                      <div className="mt-3">
+                        <span className="font-medium">Raw OCR Text (first 500 chars):</span>
+                        <div className="mt-1 p-2 bg-blue-100 dark:bg-blue-900 rounded text-xs font-mono overflow-x-auto whitespace-pre-wrap break-all">
+                          {ocrDebugText.substring(0, 500)}
+                          {ocrDebugText.length > 500 && '...'}
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs text-blue-600 dark:text-blue-400 mt-2">
+                        Check browser console for full debug logs
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </Card>
+            )}
+            
             {/* Warnings Banner */}
             {warningMessages.length > 0 && (
               <Card className="p-4 border-amber-500/50 bg-amber-50 dark:bg-amber-950/20">

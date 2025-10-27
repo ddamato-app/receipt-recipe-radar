@@ -439,10 +439,48 @@ function calculateTotal(text: string): number {
 }
 
 export function parseReceiptText(ocrText: string): ParsedReceipt {
+  console.log('=== OCR PARSING DEBUG ===');
+  console.log('Raw text (first 200 chars):', ocrText.substring(0, 200));
+  console.log('Total text length:', ocrText.length);
+  console.log('Total lines:', ocrText.split('\n').length);
+  
+  // Test if basic patterns exist
+  const hasPrices = /\d+[,\.]\d{2}/.test(ocrText);
+  const hasItemCodes = /\d{7}/.test(ocrText);
+  const hasCommonWords = /GAIN|FRAISE|JAMBON|POMME|CERISE|TOMATE|BANAN|YOGURT|YOG|MILK|LAIT|CHEESE|FROMAGE/i.test(ocrText);
+  
+  console.log('Has prices:', hasPrices);
+  console.log('Has item codes (7 digits):', hasItemCodes);
+  console.log('Has food words:', hasCommonWords);
+  
+  // Find ALL prices
+  const allPrices = [...ocrText.matchAll(/\d+[,\.]\d{2}/g)];
+  console.log('All prices found:', allPrices.length);
+  console.log('Prices:', allPrices.slice(0, 10).map(m => m[0])); // First 10
+  
+  // Find ALL item codes
+  const allCodes = [...ocrText.matchAll(/\d{7}/g)];
+  console.log('All 7-digit codes found:', allCodes.length);
+  console.log('Codes:', allCodes.slice(0, 10).map(m => m[0])); // First 10
+  
   const store = detectStore(ocrText);
   const date = detectDate(ocrText);
   const items = parseItems(ocrText, store);
   const total = calculateTotal(ocrText);
+  
+  console.log('=== PARSING RESULTS ===');
+  console.log('Store detected:', store);
+  console.log('Items extracted:', items.length);
+  items.forEach((item, i) => {
+    console.log(`Item ${i + 1}:`, {
+      name: item.name,
+      price: item.price,
+      category: item.category,
+      confidence: item.confidence,
+      quantity: item.quantity
+    });
+  });
+  console.log('=== END DEBUG ===');
   
   return {
     store,
