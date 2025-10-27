@@ -14,6 +14,7 @@ import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { Progress } from "@/components/ui/progress";
 import { ProgressIncentive } from "@/components/ProgressIncentive";
 import { AuthModal } from "@/components/AuthModal";
+import { ReceiptScanner } from "@/components/ReceiptScanner";
 
 type ScannedItem = {
   name: string;
@@ -40,6 +41,7 @@ export default function AddItem() {
   const [showProgressIncentive, setShowProgressIncentive] = useState(false);
   const [progressType, setProgressType] = useState<'10-items' | '2-recipes'>('10-items');
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showReceiptScanner, setShowReceiptScanner] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     quantity: "1",
@@ -409,25 +411,12 @@ export default function AddItem() {
           className="hidden"
         />
         <Button 
-          className="h-24 bg-gradient-to-br from-primary to-success text-white shadow-md relative"
-          onClick={tier === 'pro' ? () => fileInputRef.current?.click() : handleProFeatureClick}
-          disabled={isScanning}
+          className="h-24 bg-gradient-to-br from-primary to-success text-white shadow-md"
+          onClick={() => setShowReceiptScanner(true)}
         >
-          {tier !== 'pro' && (
-            <Badge className="absolute top-2 right-2 bg-gradient-to-r from-warning to-primary text-white text-xs">
-              <Crown className="w-3 h-3 mr-1" />
-              Pro
-            </Badge>
-          )}
           <div className="flex flex-col items-center gap-2">
-            {isScanning ? (
-              <Loader2 className="w-8 h-8 animate-spin" />
-            ) : (
-              <Camera className="w-8 h-8" />
-            )}
-            <span className="text-sm font-medium">
-              {isScanning ? "Scanning..." : "Scan Receipt"}
-            </span>
+            <Camera className="w-8 h-8" />
+            <span className="text-sm font-medium">Scan Receipt</span>
           </div>
         </Button>
         <Button 
@@ -443,8 +432,14 @@ export default function AddItem() {
             </Badge>
           )}
           <div className="flex flex-col items-center gap-2">
-            <Upload className="w-8 h-8" />
-            <span className="text-sm font-medium">Upload Image</span>
+            {isScanning ? (
+              <Loader2 className="w-8 h-8 animate-spin" />
+            ) : (
+              <Upload className="w-8 h-8" />
+            )}
+            <span className="text-sm font-medium">
+              {isScanning ? "Scanning..." : "Upload Image"}
+            </span>
           </div>
         </Button>
       </div>
@@ -720,6 +715,13 @@ export default function AddItem() {
         open={showAuthModal}
         onOpenChange={setShowAuthModal}
         defaultTab="signup"
+      />
+
+      {/* Receipt Scanner */}
+      <ReceiptScanner
+        open={showReceiptScanner}
+        onOpenChange={setShowReceiptScanner}
+        onSuccess={() => navigate('/inventory')}
       />
     </div>
   );
