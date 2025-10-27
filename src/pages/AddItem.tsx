@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Camera, Upload, X, Check, Loader2, DollarSign, ChevronDown, ChevronUp, AlertTriangle, Crown } from "lucide-react";
+import { Camera, Upload, X, Check, Loader2, DollarSign, ChevronDown, ChevronUp, AlertTriangle, Crown, Sparkles } from "lucide-react";
 import { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -14,6 +14,7 @@ import { UpgradePrompt } from "@/components/UpgradePrompt";
 import { Progress } from "@/components/ui/progress";
 import { ProgressIncentive } from "@/components/ProgressIncentive";
 import { AuthModal } from "@/components/AuthModal";
+import { ReceiptGenerator } from "@/components/ReceiptGenerator";
 
 type ScannedItem = {
   name: string;
@@ -40,6 +41,7 @@ export default function AddItem() {
   const [showProgressIncentive, setShowProgressIncentive] = useState(false);
   const [progressType, setProgressType] = useState<'10-items' | '2-recipes'>('10-items');
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showReceiptGenerator, setShowReceiptGenerator] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     quantity: "1",
@@ -399,7 +401,7 @@ export default function AddItem() {
       )}
 
       {/* Scan Options */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-3">
         <input
           ref={fileInputRef}
           type="file"
@@ -445,6 +447,16 @@ export default function AddItem() {
           <div className="flex flex-col items-center gap-2">
             <Upload className="w-8 h-8" />
             <span className="text-sm font-medium">Upload Image</span>
+          </div>
+        </Button>
+        <Button 
+          variant="outline"
+          className="h-24 shadow-md bg-gradient-to-br from-primary/5 to-success/5 border-primary/20"
+          onClick={() => setShowReceiptGenerator(true)}
+        >
+          <div className="flex flex-col items-center gap-2">
+            <Sparkles className="w-8 h-8 text-primary" />
+            <span className="text-sm font-medium">Generate Receipt</span>
           </div>
         </Button>
       </div>
@@ -720,6 +732,12 @@ export default function AddItem() {
         open={showAuthModal}
         onOpenChange={setShowAuthModal}
         defaultTab="signup"
+      />
+
+      {/* Receipt Generator */}
+      <ReceiptGenerator
+        open={showReceiptGenerator}
+        onOpenChange={setShowReceiptGenerator}
       />
     </div>
   );
