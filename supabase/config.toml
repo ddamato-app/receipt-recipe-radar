@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.ocr-debug]
 verify_jwt = false
+
+[functions.vision-ocr]
+verify_jwt = false
+
+[functions.tesseract-ocr]
+verify_jwt = false
