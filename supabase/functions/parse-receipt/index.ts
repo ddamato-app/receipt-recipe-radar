@@ -10,9 +10,10 @@ const normMoney = (s: string): number => {
   return parseFloat(s.replace(/\s/g, '').replace(/\./g, '').replace(',', '.'));
 };
 
-// Regex patterns
+// Regex patterns (Quebec format: comma as decimal, with/without - for discounts)
 const PRICE = /(?:\$)?\d{1,4}[.,]\d{2}(?!\w)/g;
-const COUPON = /\b(?:TPR|TPO|COUPON|RABAIS|REDUC|PROMO)[^0-9\-+]*([\-+]?\d+[.,]\d{2})\s*F?P?\b/i;
+const COUPON = /\b(?:TPR|TPO|COUPON|RABAIS|REDUC|PROMO)[^0-9]*([\-+]?\d+[.,]\d{2})[\-]?\s*F?P?\b/i;
+const DISCOUNT_TRAILING_MINUS = /(\d+[.,]\d{2})[\-]\s*F?P?\b/; // e.g., 3,80-FP
 const VOID = /\bANNUL\.?\b/i;
 const TOTALS = {
   subtotal: /\b(?:SOUS[- ]?TOTAL|SUBTOTAL)\b.*?(\d{1,4}[.,]\d{2})/i,
@@ -159,20 +160,41 @@ function parseReceipt(ocrText: string, hints?: { vendor?: string }) {
   const tax_total = taxMatch ? normMoney(taxMatch[1]) : undefined;
   const total = totalMatch ? normMoney(totalMatch[1]) : undefined;
   
-  // Parse items and discounts
+  // Parse items and discounts, tracking void blocks
   const items: any[] = [];
   const discounts: any[] = [];
   
-  for (const line of lines) {
-    // Skip voids
-    if (VOID.test(line)) continue;
+  const voidIndices = new Set<number>();
+  
+  // First pass: identify ANNUL lines and mark adjacent lines as voided
+  lines.forEach((line, idx) => {
+    if (VOID.test(line)) {
+      voidIndices.add(idx);
+      // Mark previous line as voided (ANNUL typically voids the line above)
+      if (idx > 0) voidIndices.add(idx - 1);
+    }
+  });
+  
+  // Second pass: parse non-voided lines
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
     
-    // Check for coupons/discounts
+    // Skip voided lines
+    if (voidIndices.has(i)) continue;
+    
+    // Check for coupons/discounts (match both formats: -3,80 FP and 3,80-FP)
     const couponMatch = line.match(COUPON);
-    if (couponMatch) {
+    const trailingMinusMatch = line.match(DISCOUNT_TRAILING_MINUS);
+    
+    if (couponMatch || trailingMinusMatch) {
+      const matched = couponMatch || trailingMinusMatch;
+      const amountStr = matched![1];
+      const amount = -Math.abs(normMoney(amountStr)); // Always negative
+      const label = line.split(amountStr)[0].trim() || 'Discount';
+      
       discounts.push({
-        label: line.split(couponMatch[1])[0].trim(),
-        amount: normMoney(couponMatch[1]),
+        label: cleanName(label),
+        amount,
       });
       continue;
     }
@@ -189,11 +211,12 @@ function parseReceipt(ocrText: string, hints?: { vendor?: string }) {
       name = cleanName(name);
       const price_total = normMoney(price);
       
-      // Extract quantity
+      // Extract quantity only if explicitly shown (e.g., "2 x 12,49")
+      // Duplicate items on separate lines remain separate
       let qty = 1;
-      const qtyMatch = name.match(/(\d+)\s*x|x\s*(\d+)/i);
+      const qtyMatch = name.match(/(\d+)\s*[xX×]/);
       if (qtyMatch) {
-        qty = parseInt(qtyMatch[1] || qtyMatch[2]);
+        qty = parseInt(qtyMatch[1]);
       }
       
       items.push({

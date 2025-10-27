@@ -6,9 +6,10 @@ const normMoney = (s: string): Money => {
   return parseFloat(s.replace(/\s/g, '').replace(/\./g, '').replace(',', '.'));
 };
 
-// Regex patterns
+// Regex patterns (Quebec format: comma as decimal, with/without - for discounts)
 const PRICE = /(?:\$)?\d{1,4}[.,]\d{2}(?!\w)/g;
-const COUPON = /\b(?:TPR|TPO|COUPON|RABAIS|REDUC|PROMO)[^0-9\-+]*([\-+]?\d+[.,]\d{2})\s*F?P?\b/i;
+const COUPON = /\b(?:TPR|TPO|COUPON|RABAIS|REDUC|PROMO)[^0-9]*([\-+]?\d+[.,]\d{2})[\-]?\s*F?P?\b/i;
+const DISCOUNT_TRAILING_MINUS = /(\d+[.,]\d{2})[\-]\s*F?P?\b/; // e.g., 3,80-FP
 const VOID = /\bANNUL\.?\b/i;
 const TOTALS = {
   subtotal: /\b(?:SOUS[- ]?TOTAL|SUBTOTAL)\b.*?(\d{1,4}[.,]\d{2})/i,
@@ -74,19 +75,38 @@ export function parseReceipt(
   const date = detectDate(ocrText);
   console.log('Detected date:', date);
   
-  // Parse each line
-  for (const line of lines) {
-    // Skip void lines
+  // Parse each line, tracking void blocks
+  const voidIndices = new Set<number>();
+  
+  // First pass: identify ANNUL lines and mark adjacent lines as voided
+  lines.forEach((line, idx) => {
     if (VOID.test(line)) {
-      console.log('⊗ Skipping void line:', line);
+      voidIndices.add(idx);
+      // Mark previous line as voided (ANNUL typically voids the line above)
+      if (idx > 0) voidIndices.add(idx - 1);
+      console.log('⊗ ANNUL detected at line', idx, '- voiding lines:', idx - 1, idx);
+    }
+  });
+  
+  // Second pass: parse non-voided lines
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    
+    // Skip voided lines
+    if (voidIndices.has(i)) {
+      console.log('⊗ Skipping voided line:', line);
       continue;
     }
     
-    // Check for discount/coupon lines
+    // Check for discount/coupon lines (match both formats: -3,80 FP and 3,80-FP)
     const couponMatch = line.match(COUPON);
-    if (couponMatch) {
-      const amount = -Math.abs(normMoney(couponMatch[1]));
-      const label = line.replace(couponMatch[0], '').trim() || 'Discount';
+    const trailingMinusMatch = line.match(DISCOUNT_TRAILING_MINUS);
+    
+    if (couponMatch || trailingMinusMatch) {
+      const matched = couponMatch || trailingMinusMatch;
+      const amountStr = matched![1];
+      const amount = -Math.abs(normMoney(amountStr)); // Always negative
+      const label = line.replace(matched![0], '').trim() || 'Discount';
       
       discounts.push({
         label: cleanName(label),
@@ -114,12 +134,13 @@ export function parseReceipt(
       name = expandAbbreviations(name);
       name = fixOCRErrors(name);
       
-      // Extract quantity and unit
+      // Extract quantity and unit (only if explicitly shown like "2 x 12,49")
+      // Duplicate items on separate lines should NOT be combined
       const qtyInfo = extractQuantity(line);
       
-      // Calculate unit price if we have quantity
+      // Calculate unit price if we have explicit quantity
       let unitPrice: Money | undefined;
-      if (qtyInfo.qty > 1) {
+      if (qtyInfo.qty > 1 && qtyInfo.explicit) {
         unitPrice = priceTotal / qtyInfo.qty;
       } else if (qtyInfo.unitPrice) {
         unitPrice = qtyInfo.unitPrice;
@@ -324,15 +345,18 @@ function fixOCRErrors(text: string): string {
 
 /**
  * Extract quantity and unit information
+ * Returns explicit=true only when quantity is explicitly shown (e.g., "2 x" or "2x")
  */
 function extractQuantity(line: string): {
   qty: number;
   unit?: string;
   unitPrice?: Money;
+  explicit?: boolean;
 } {
   let qty = 1;
   let unit: string | undefined;
   let unitPrice: Money | undefined;
+  let explicit = false;
   
   for (const { regex, group, isPrice, hasUnit } of QTY_PATTERNS) {
     const match = line.match(regex);
@@ -341,6 +365,7 @@ function extractQuantity(line: string): {
         unitPrice = normMoney(match[group]);
       } else {
         qty = parseFloat(match[group].replace(',', '.'));
+        explicit = true; // Quantity was explicitly shown
         
         if (hasUnit && match[group + 1]) {
           unit = match[group + 1].toLowerCase();
@@ -350,7 +375,7 @@ function extractQuantity(line: string): {
     }
   }
   
-  return { qty, unit, unitPrice };
+  return { qty, unit, unitPrice, explicit };
 }
 
 /**
