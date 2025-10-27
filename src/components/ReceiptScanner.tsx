@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Loader2, Camera, Upload, X, AlertCircle, CheckCircle2, Trash2, Mail } from 'lucide-react';
+import { Loader2, Camera, Upload, X, AlertCircle, CheckCircle2, Trash2, Mail, ShieldCheck, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { parseReceiptText, type ParsedReceiptItem, type ParsedReceipt } from '@/lib/receiptParser';
@@ -342,7 +342,10 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
 
             <div className="space-y-2 max-h-[400px] overflow-y-auto">
               {editedItems.map((item) => (
-                <Card key={item.id} className="p-4">
+                <Card key={item.id} className={`p-4 ${
+                  item.confidence === 'low' ? 'border-destructive/50' : 
+                  item.confidence === 'medium' ? 'border-warning/50' : ''
+                }`}>
                   <div className="flex items-start gap-3">
                     <Checkbox
                       checked={item.selected}
@@ -351,11 +354,38 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
                     />
                     <div className="flex-1 space-y-3">
                       <div className="flex items-start justify-between gap-2">
-                        <Input
-                          value={item.name}
-                          onChange={(e) => handleUpdateItem(item.id, 'name', e.target.value)}
-                          className="flex-1"
-                        />
+                        <div className="flex-1 space-y-2">
+                          <div className="flex items-center gap-2">
+                            <Input
+                              value={item.name}
+                              onChange={(e) => handleUpdateItem(item.id, 'name', e.target.value)}
+                              className="flex-1"
+                            />
+                            {item.confidence === 'high' && (
+                              <Badge variant="outline" className="text-green-600 border-green-600 shrink-0">
+                                <CheckCircle2 className="w-3 h-3 mr-1" />
+                                High
+                              </Badge>
+                            )}
+                            {item.confidence === 'medium' && (
+                              <Badge variant="outline" className="text-amber-600 border-amber-600 shrink-0">
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                Medium
+                              </Badge>
+                            )}
+                            {item.confidence === 'low' && (
+                              <Badge variant="outline" className="text-destructive border-destructive shrink-0">
+                                <AlertCircle className="w-3 h-3 mr-1" />
+                                Low
+                              </Badge>
+                            )}
+                          </div>
+                          {item.rawName && item.rawName !== item.name && (
+                            <p className="text-xs text-muted-foreground">
+                              Original: {item.rawName}
+                            </p>
+                          )}
+                        </div>
                         <Button
                           variant="ghost"
                           size="sm"
