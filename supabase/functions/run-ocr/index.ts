@@ -134,16 +134,23 @@ async function runGoogleVisionOCR(imageBuffer: Uint8Array): Promise<OCRResult | 
  * Run OCR with Google Vision first, fallback to Tesseract if needed
  */
 async function runOCR(imageBuffer: Uint8Array): Promise<OCRResult> {
-  // Try Google Vision first
-  const visionResult = await runGoogleVisionOCR(imageBuffer);
+  // Check if Google Vision is enabled
+  const useGoogleVision = Deno.env.get('USE_GOOGLE_VISION') === 'true';
   
-  if (visionResult && visionResult.meanConfidence && visionResult.meanConfidence >= 0.75) {
-    console.log('Using Google Vision result (high confidence)');
-    return visionResult;
-  }
-  
-  if (visionResult) {
-    console.log(`Google Vision confidence ${visionResult.meanConfidence} < 0.75, falling back to Tesseract`);
+  if (useGoogleVision) {
+    // Try Google Vision first
+    const visionResult = await runGoogleVisionOCR(imageBuffer);
+    
+    if (visionResult && visionResult.meanConfidence && visionResult.meanConfidence >= 0.75) {
+      console.log('Using Google Vision result (high confidence)');
+      return visionResult;
+    }
+    
+    if (visionResult) {
+      console.log(`Google Vision confidence ${visionResult.meanConfidence} < 0.75, falling back to Tesseract`);
+    }
+  } else {
+    console.log('Google Vision is disabled, using Tesseract OCR...');
   }
   
   // Fallback to Tesseract with preprocessing
