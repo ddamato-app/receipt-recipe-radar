@@ -181,6 +181,29 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
 
       if (error) throw error;
 
+      // Update the shared product catalog with confirmed items
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        try {
+          await supabase.functions.invoke('update-catalog', {
+            body: { 
+              items: selectedItems.map(item => ({
+                name: item.name,
+                brand: item.brand || null,
+                category: item.category
+              }))
+            },
+            headers: {
+              Authorization: `Bearer ${session.access_token}`
+            }
+          });
+          console.log('Product catalog updated successfully');
+        } catch (catalogError) {
+          console.error('Failed to update catalog:', catalogError);
+          // Don't fail the whole operation if catalog update fails
+        }
+      }
+
       toast({
         title: "Success!",
         description: `Added ${selectedItems.length} items to your fridge`

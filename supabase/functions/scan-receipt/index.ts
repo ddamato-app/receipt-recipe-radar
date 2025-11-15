@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.76.1';
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -23,6 +24,46 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
+    }
+
+    // Get authorization header for Supabase queries
+    const authHeader = req.headers.get('Authorization');
+    const supabaseClient = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_ANON_KEY') ?? '',
+      { global: { headers: { Authorization: authHeader! } } }
+    );
+
+    console.log('Fetching product catalog for better recognition...');
+    
+    // Query the shared product catalog to improve AI recognition
+    const { data: catalogData } = await supabaseClient
+      .from('product_catalog')
+      .select('product_name, brand, category')
+      .order('confirmed_count', { ascending: false })
+      .limit(500);
+
+    // Build a knowledge base from the catalog
+    let knownProducts = '';
+    if (catalogData && catalogData.length > 0) {
+      const brandMap = new Map<string, Set<string>>();
+      catalogData.forEach(item => {
+        if (item.brand) {
+          if (!brandMap.has(item.brand)) {
+            brandMap.set(item.brand, new Set());
+          }
+          brandMap.get(item.brand)!.add(item.product_name);
+        }
+      });
+      
+      const topBrands = Array.from(brandMap.entries())
+        .sort((a, b) => b[1].size - a[1].size)
+        .slice(0, 50);
+      
+      knownProducts = '\n\nKnown brands and products from our database:\n' + 
+        topBrands.map(([brand, products]) => 
+          `${brand}: ${Array.from(products).slice(0, 10).join(', ')}`
+        ).join('\n');
     }
 
     console.log('Processing receipt with AI vision...');
@@ -60,6 +101,10 @@ Categories to use:
 - Pantry: pasta, rice, canned goods, condiments, spices
 - Household: cleaning products, paper products, toiletries
 - Other: anything that doesn't fit above
+
+${knownProducts}
+
+IMPORTANT: Use the known brands and products above to help identify items more accurately. If you see text that matches a known brand, use that exact brand name.
 
 Return ONLY valid JSON with this structure:
 {
