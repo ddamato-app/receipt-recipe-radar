@@ -38,19 +38,21 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are an expert at reading grocery receipts. Extract ALL items from the receipt, including:
-- Product names (expand abbreviations to full names, e.g., "MLKY" -> "Milk", "STRWBRY" -> "Strawberries")
+            content: `You are an expert at reading grocery receipts in both French and English. Extract ALL items from the receipt, including:
+- Detect the language of the receipt (French or English)
+- Product names (expand abbreviations to full names in the detected language, e.g., "MLKY" -> "Milk"/"Lait", "STRWBRY" -> "Strawberries"/"Fraises")
 - Quantities (if listed, otherwise default to 1)
-- Units (pcs, kg, g, liters, etc.)
+- Units (pcs, kg, g, liters, ml, etc.)
 - Categories (Dairy, Fruits, Vegetables, Meat, Beverages, Snacks, etc.)
 - Approximate expiration dates based on product type
 - Prices (extract the individual item price if visible, otherwise set to 0)
 
 Return ONLY valid JSON with this structure:
 {
+  "language": "en|fr",
   "items": [
     {
-      "name": "Full product name",
+      "name": "Full product name in the detected language",
       "quantity": number,
       "unit": "pcs|kg|g|liters|ml",
       "category": "Dairy|Fruits|Vegetables|Meat|Beverages|Snacks|Other",
@@ -65,7 +67,7 @@ Return ONLY valid JSON with this structure:
             content: [
               {
                 type: "text",
-                text: "Please extract all items from this grocery receipt. Expand any abbreviated product names to their full names. Extract prices for each item if visible."
+                text: "Please detect if this receipt is in French or English, then extract all items from this grocery receipt. Expand any abbreviated product names to their full names in the detected language. Extract prices for each item if visible."
               },
               {
                 type: "image_url",
