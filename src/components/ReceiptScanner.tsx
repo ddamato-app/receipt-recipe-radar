@@ -19,6 +19,7 @@ interface ReceiptScannerProps {
 
 interface ScannedItem {
   name: string;
+  brand?: string;
   quantity: number;
   unit: string;
   category: string;
@@ -65,6 +66,7 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
 
           const items: ScannedItem[] = data.items.map((item: any) => ({
             ...item,
+            brand: item.brand || '',
             selected: true
           }));
 
@@ -156,6 +158,7 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
       const itemsToInsert = selectedItems.map(item => ({
         user_id: user.id,
         name: item.name,
+        brand: item.brand || null,
         quantity: item.quantity,
         unit: item.unit,
         category: item.category,
@@ -299,13 +302,24 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
                       />
                       <div className="flex-1 space-y-3">
                         <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1">
-                            <Input
-                              value={item.name}
-                              onChange={(e) => handleUpdateItem(index, 'name', e.target.value)}
-                              className="font-medium"
-                              placeholder="Item name"
-                            />
+                          <div className="flex-1 space-y-2">
+                            <div>
+                              <label className="text-xs text-muted-foreground">Item Name</label>
+                              <Input
+                                value={item.name}
+                                onChange={(e) => handleUpdateItem(index, 'name', e.target.value)}
+                                className="font-medium"
+                                placeholder="Item name"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-muted-foreground">Brand (optional)</label>
+                              <Input
+                                value={item.brand || ''}
+                                onChange={(e) => handleUpdateItem(index, 'brand', e.target.value)}
+                                placeholder="Brand name"
+                              />
+                            </div>
                           </div>
                           <Button
                             variant="ghost"
@@ -350,6 +364,10 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
                                 <SelectItem value="Meat">Meat</SelectItem>
                                 <SelectItem value="Beverages">Beverages</SelectItem>
                                 <SelectItem value="Snacks">Snacks</SelectItem>
+                                <SelectItem value="Bakery">Bakery</SelectItem>
+                                <SelectItem value="Frozen">Frozen</SelectItem>
+                                <SelectItem value="Pantry">Pantry</SelectItem>
+                                <SelectItem value="Household">Household</SelectItem>
                                 <SelectItem value="Other">Other</SelectItem>
                               </SelectContent>
                             </Select>

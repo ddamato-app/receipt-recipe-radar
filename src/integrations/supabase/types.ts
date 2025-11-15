@@ -46,6 +46,7 @@ export type Database = {
       }
       fridge_items: {
         Row: {
+          brand: string | null
           category: string
           completed_at: string | null
           created_at: string | null
@@ -61,6 +62,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          brand?: string | null
           category: string
           completed_at?: string | null
           created_at?: string | null
@@ -76,6 +78,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          brand?: string | null
           category?: string
           completed_at?: string | null
           created_at?: string | null
