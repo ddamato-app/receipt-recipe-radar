@@ -18,6 +18,7 @@ import { ReceiptScanner } from "@/components/ReceiptScanner";
 
 type ScannedItem = {
   name: string;
+  brand?: string;
   quantity: number;
   unit: string;
   category: string;
@@ -114,7 +115,13 @@ export default function AddItem() {
         if (error) {
           throw new Error(error.message || 'Failed to scan receipt');
         }
-        setScannedItems(data.items || []);
+        
+        const items = (data.items || []).map((item: any) => ({
+          ...item,
+          brand: item.brand || '',
+        }));
+        
+        setScannedItems(items);
         
         toast({
           title: "Receipt Scanned!",
@@ -166,6 +173,7 @@ export default function AddItem() {
       const itemsToInsert = scannedItems.map(item => ({
         user_id: user.id,
         name: item.name,
+        brand: item.brand || null,
         quantity: item.quantity,
         unit: item.unit,
         category: item.category,
@@ -477,27 +485,103 @@ export default function AddItem() {
                 </p>
               </div>
               
-              <div className="space-y-2 max-h-64 overflow-y-auto">
+              <div className="space-y-3 max-h-96 overflow-y-auto">
                 {scannedItems.map((item, index) => (
-                  <Card key={index} className="p-3 bg-muted/30">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-foreground">{item.name}</h3>
-                        <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                          <span>{item.quantity} {item.unit}</span>
-                          <span>•</span>
-                          <Badge variant="outline" className="text-xs">{item.category}</Badge>
+                  <Card key={index} className="p-4 bg-card border-border">
+                    <div className="space-y-3">
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <Label className="text-xs">Item Name</Label>
+                          <Input
+                            value={item.name}
+                            onChange={(e) => {
+                              const updated = [...scannedItems];
+                              updated[index].name = e.target.value;
+                              setScannedItems(updated);
+                            }}
+                            placeholder="Item name"
+                            className="mt-1"
+                          />
                         </div>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Expires: {item.expiryDate} ({item.daysLeft}d)
-                        </p>
+                        <div>
+                          <Label className="text-xs">Brand</Label>
+                          <Input
+                            value={item.brand || ''}
+                            onChange={(e) => {
+                              const updated = [...scannedItems];
+                              updated[index].brand = e.target.value;
+                              setScannedItems(updated);
+                            }}
+                            placeholder="Brand name"
+                            className="mt-1"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-3 gap-3">
+                        <div>
+                          <Label className="text-xs">Quantity</Label>
+                          <Input
+                            type="number"
+                            value={item.quantity}
+                            onChange={(e) => {
+                              const updated = [...scannedItems];
+                              updated[index].quantity = Number(e.target.value);
+                              setScannedItems(updated);
+                            }}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Unit</Label>
+                          <Input
+                            value={item.unit}
+                            onChange={(e) => {
+                              const updated = [...scannedItems];
+                              updated[index].unit = e.target.value;
+                              setScannedItems(updated);
+                            }}
+                            className="mt-1"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Category</Label>
+                          <Select
+                            value={item.category}
+                            onValueChange={(value) => {
+                              const updated = [...scannedItems];
+                              updated[index].category = value;
+                              setScannedItems(updated);
+                            }}
+                          >
+                            <SelectTrigger className="mt-1">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent className="bg-popover z-50">
+                              <SelectItem value="Dairy">Dairy</SelectItem>
+                              <SelectItem value="Fruits">Fruits</SelectItem>
+                              <SelectItem value="Vegetables">Vegetables</SelectItem>
+                              <SelectItem value="Meat">Meat</SelectItem>
+                              <SelectItem value="Beverages">Beverages</SelectItem>
+                              <SelectItem value="Snacks">Snacks</SelectItem>
+                              <SelectItem value="Bakery">Bakery</SelectItem>
+                              <SelectItem value="Frozen">Frozen</SelectItem>
+                              <SelectItem value="Pantry">Pantry</SelectItem>
+                              <SelectItem value="Household">Household</SelectItem>
+                              <SelectItem value="Other">Other</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                        <span>Expires: {item.expiryDate} ({item.daysLeft}d)</span>
                         {item.price && item.price > 0 && (
-                          <p className="text-xs font-semibold text-primary mt-1">
+                          <span className="font-semibold text-primary">
                             ${item.price.toFixed(2)}
-                          </p>
+                          </span>
                         )}
                       </div>
-                      <Check className="w-5 h-5 text-success" />
                     </div>
                   </Card>
                 ))}
