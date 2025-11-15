@@ -50,8 +50,16 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
         setSelectedImage(imageBase64);
         
         try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (!session?.access_token) {
+            throw new Error("Authentication required. Please sign in again.");
+          }
+
           const { data, error } = await supabase.functions.invoke('scan-receipt', {
-            body: { imageBase64 }
+            body: { imageBase64 },
+            headers: {
+              Authorization: `Bearer ${session.access_token}`
+            }
           });
 
           if (error) throw error;
