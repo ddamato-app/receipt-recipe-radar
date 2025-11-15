@@ -99,24 +99,21 @@ export default function AddItem() {
       setScannedImage(base64Image);
 
       try {
-        const response = await fetch(
-          `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/scan-receipt`,
-          {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            },
-            body: JSON.stringify({ imageBase64: base64Image }),
-          }
-        );
-
-        if (!response.ok) {
-          const errorData = await response.json();
-          throw new Error(errorData.error || 'Failed to scan receipt');
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session?.access_token) {
+          throw new Error("Authentication required. Please sign in again.");
         }
 
-        const data = await response.json();
+        const { data, error } = await supabase.functions.invoke('scan-receipt', {
+          body: { imageBase64: base64Image },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`
+          }
+        });
+
+        if (error) {
+          throw new Error(error.message || 'Failed to scan receipt');
+        }
         setScannedItems(data.items || []);
         
         toast({
