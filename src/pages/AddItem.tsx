@@ -161,7 +161,9 @@ export default function AddItem() {
     setIsSaving(true);
     try {
       const { data: { user } } = await supabase.auth.getUser();
-      if (!user) {
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!user || !session) {
         toast({
           title: "Authentication required",
           description: "Please log in to add items",
@@ -186,6 +188,26 @@ export default function AddItem() {
         .insert(itemsToInsert);
 
       if (error) throw error;
+
+      // Update the shared product catalog with confirmed items
+      try {
+        await supabase.functions.invoke('update-catalog', {
+          body: { 
+            items: scannedItems.map(item => ({
+              name: item.name,
+              brand: item.brand || null,
+              category: item.category
+            }))
+          },
+          headers: {
+            Authorization: `Bearer ${session.access_token}`
+          }
+        });
+        console.log('Product catalog updated successfully');
+      } catch (catalogError) {
+        console.error('Failed to update catalog:', catalogError);
+        // Don't fail the whole operation if catalog update fails
+      }
 
       toast({
         title: "Items added!",
