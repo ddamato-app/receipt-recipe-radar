@@ -38,24 +38,39 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `You are an expert at reading grocery receipts in both French and English. Extract ALL items from the receipt, including:
-- Detect the language of the receipt (French or English)
-- Product names (expand abbreviations to full names in the detected language, e.g., "MLKY" -> "Milk"/"Lait", "STRWBRY" -> "Strawberries"/"Fraises")
-- Quantities (if listed, otherwise default to 1)
-- Units (pcs, kg, g, liters, ml, etc.)
-- Categories (Dairy, Fruits, Vegetables, Meat, Beverages, Snacks, etc.)
-- Approximate expiration dates based on product type
-- Prices (extract the individual item price if visible, otherwise set to 0)
+            content: `You are an expert at reading grocery receipts in both French and English. For each item on the receipt, you must:
+
+1. Detect the language of the receipt (French or English)
+2. Identify the EXACT item name (e.g., "Yogurt"/"Yogourt", "Milk"/"Lait", "Bread"/"Pain")
+3. Extract the BRAND separately (e.g., "Danone", "Oikos", "President", "Nestle")
+4. Assign the item to the CORRECT category based on what it is
+5. Extract quantity and unit (if listed, otherwise default to 1 pcs)
+6. Estimate expiration based on the product type
+7. Extract individual item price (if visible, otherwise 0)
+
+Categories to use:
+- Dairy: milk, cheese, yogurt, butter, cream, eggs
+- Fruits: all fresh fruits
+- Vegetables: all fresh vegetables
+- Meat: beef, pork, chicken, fish, seafood, deli meats
+- Beverages: juice, soda, water, coffee, tea (non-dairy)
+- Snacks: chips, cookies, candy, chocolate
+- Bakery: bread, pastries, cakes
+- Frozen: frozen meals, ice cream, frozen vegetables
+- Pantry: pasta, rice, canned goods, condiments, spices
+- Household: cleaning products, paper products, toiletries
+- Other: anything that doesn't fit above
 
 Return ONLY valid JSON with this structure:
 {
   "language": "en|fr",
   "items": [
     {
-      "name": "Full product name in the detected language",
+      "name": "Exact item name only (no brand)",
+      "brand": "Brand name or empty string if not identifiable",
       "quantity": number,
       "unit": "pcs|kg|g|liters|ml",
-      "category": "Dairy|Fruits|Vegetables|Meat|Beverages|Snacks|Other",
+      "category": "Dairy|Fruits|Vegetables|Meat|Beverages|Snacks|Bakery|Frozen|Pantry|Household|Other",
       "estimatedDaysToExpiry": number,
       "price": number
     }
@@ -67,7 +82,7 @@ Return ONLY valid JSON with this structure:
             content: [
               {
                 type: "text",
-                text: "Please detect if this receipt is in French or English, then extract all items from this grocery receipt. Expand any abbreviated product names to their full names in the detected language. Extract prices for each item if visible."
+                text: "Analyze this grocery receipt. For each item: 1) Detect if French or English, 2) Identify the exact item name (not the brand), 3) Extract the brand separately, 4) Assign to the correct category, 5) Extract quantity, unit, and price. Expand abbreviations to full product names in the detected language."
               },
               {
                 type: "image_url",
