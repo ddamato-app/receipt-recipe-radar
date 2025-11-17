@@ -17,6 +17,7 @@ import { checkNearbyStores, shouldCheckLocation, setLastLocationCheck } from "@/
 import { showShoppingReminderNotification, shouldShowShoppingReminder, isNotificationEnabled } from "@/lib/notificationService";
 import { getGreeting, getTimeBasedEmoji, getContextualMessage, getStatusMessage, getMotivationalMessage, getHealthScoreMessage } from "@/lib/greetingHelper";
 import heroImage from "@/assets/hero-groceries.jpg";
+import { useTranslation } from "react-i18next";
 
 export default function Home() {
   const [stats, setStats] = useState({
@@ -39,6 +40,7 @@ export default function Home() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { tier, user } = useAuth();
+  const { t } = useTranslation();
 
   const handleProFeatureClick = () => {
     if (tier !== 'pro') {

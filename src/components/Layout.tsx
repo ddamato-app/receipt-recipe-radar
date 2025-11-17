@@ -5,18 +5,20 @@ import { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { AuthModal } from "./AuthModal";
 import { Button } from "@/components/ui/button";
+import { useTranslation } from "react-i18next";
 
 export const Layout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const navItems = [
-    { icon: Home, label: "Home", path: "/" },
-    { icon: Package, label: "Fridge", path: "/inventory" },
-    { icon: PlusCircle, label: "Add", path: "/add" },
-    { icon: ChefHat, label: "Recipes", path: "/recipes" },
-    { icon: DollarSign, label: "Stats", path: "/spending" },
+    { icon: Home, label: t('nav.home'), path: "/" },
+    { icon: Package, label: t('nav.fridge'), path: "/inventory" },
+    { icon: PlusCircle, label: t('nav.add'), path: "/add" },
+    { icon: ChefHat, label: t('nav.recipes'), path: "/recipes" },
+    { icon: DollarSign, label: t('nav.stats'), path: "/spending" },
   ];
 
   return (
@@ -45,8 +47,7 @@ export const Layout = ({ children }: { children: React.ReactNode }) => {
             className="text-sm sm:text-base px-3 py-2 min-h-[44px]"
           >
             <User className="w-4 h-4 sm:w-5 sm:h-5 mr-2" />
-            <span className="hidden sm:inline">Sign In</span>
-            <span className="sm:hidden">Sign In</span>
+            <span>{t('nav.signIn')}</span>
           </Button>
         )}
       </header>

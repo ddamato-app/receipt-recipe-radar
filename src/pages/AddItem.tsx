@@ -15,6 +15,7 @@ import { Progress } from "@/components/ui/progress";
 import { ProgressIncentive } from "@/components/ProgressIncentive";
 import { AuthModal } from "@/components/AuthModal";
 import { ReceiptScanner } from "@/components/ReceiptScanner";
+import { useTranslation } from "react-i18next";
 
 type ScannedItem = {
   name: string;
@@ -32,6 +33,7 @@ export default function AddItem() {
   const navigate = useNavigate();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { tier, itemCount, canAddItem, incrementItemCount, checkProgressMilestone } = useAuth();
+  const { t } = useTranslation();
   const [isScanning, setIsScanning] = useState(false);
   const [scannedImage, setScannedImage] = useState<string | null>(null);
   const [scannedItems, setScannedItems] = useState<ScannedItem[]>([]);

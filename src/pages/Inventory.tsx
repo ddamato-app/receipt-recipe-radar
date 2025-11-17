@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthContext";
 import { CelebrationAnimation } from "@/components/CelebrationAnimation";
+import { useTranslation } from "react-i18next";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -102,6 +103,7 @@ export default function Inventory() {
   const { toast } = useToast();
   const navigate = useNavigate();
   const { tier, itemCount, decrementItemCount } = useAuth();
+  const { t } = useTranslation();
 
   useEffect(() => {
     const hasSeenTutorial = localStorage.getItem('fridge-swipe-tutorial');
