@@ -10,6 +10,7 @@ import { useState, useEffect } from 'react';
 import { AuthModal } from '@/components/AuthModal';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { useTranslation } from 'react-i18next';
 
 export default function Profile() {
   const { 
@@ -27,6 +28,7 @@ export default function Profile() {
   } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showDevTools, setShowDevTools] = useState(
     import.meta.env.DEV || localStorage.getItem('showDevTools') === 'true'

@@ -12,6 +12,7 @@ import { SAMPLE_RECIPES } from "@/lib/sampleRecipes";
 import { ProgressIncentive } from "@/components/ProgressIncentive";
 import { AuthModal } from "@/components/AuthModal";
 import { differenceInDays, getHours } from "date-fns";
+import { useTranslation } from "react-i18next";
 import {
   Dialog,
   DialogContent,
@@ -62,6 +63,7 @@ export default function Recipes() {
   const [allRecipesExhausted, setAllRecipesExhausted] = useState(false);
   const { toast } = useToast();
   const { tier, recipeCountToday, canGenerateRecipe, incrementRecipeCount, checkProgressMilestone } = useAuth();
+  const { t } = useTranslation();
 
   useEffect(() => {
     fetchFridgeItems();
