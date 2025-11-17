@@ -74,6 +74,15 @@
     "editBeforeAdding": "Edit items before adding",
     "brand": "Brand",
     "addAll": "Add All to Fridge",
+    "receiptScanner": {
+      "title": "Scan Receipt",
+      "description": "Upload a photo of your receipt and AI will extract the items",
+      "takePhoto": "Take Photo & Upload",
+      "chooseGallery": "Choose from Gallery",
+      "uploadDescription": "Take a photo of your receipt to automatically upload and scan it",
+      "uploaded": "Receipt uploaded",
+      "processing": "Processing image..."
+    },
     "categories": {
       "dairy": "Dairy",
       "fruits": "Fruits",
