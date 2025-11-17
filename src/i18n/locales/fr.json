@@ -74,6 +74,15 @@
     "editBeforeAdding": "Modifier les articles avant d'ajouter",
     "brand": "Marque",
     "addAll": "Tout ajouter au frigo",
+    "receiptScanner": {
+      "title": "Scanner un reçu",
+      "description": "Téléchargez une photo de votre reçu et l'IA extraira les articles",
+      "takePhoto": "Prendre une photo et télécharger",
+      "chooseGallery": "Choisir depuis la galerie",
+      "uploadDescription": "Prenez une photo de votre reçu pour le télécharger et le scanner automatiquement",
+      "uploaded": "Reçu téléchargé",
+      "processing": "Traitement de l'image..."
+    },
     "categories": {
       "dairy": "Produits laitiers",
       "fruits": "Fruits",

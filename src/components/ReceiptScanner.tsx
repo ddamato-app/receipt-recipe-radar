@@ -44,17 +44,36 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
       setStep('processing');
       setErrorMessage('');
       
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session?.access_token) {
+        throw new Error("Authentication required. Please sign in again.");
+      }
+
+      // Upload image to storage
+      const fileName = `${session.user.id}/${Date.now()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from('receipts')
+        .upload(fileName, file, {
+          contentType: file.type,
+          upsert: false
+        });
+
+      if (uploadError) {
+        console.error('Upload error:', uploadError);
+        throw new Error('Failed to upload receipt image');
+      }
+
+      toast({
+        title: "Receipt uploaded",
+        description: "Processing image..."
+      });
+      
       const reader = new FileReader();
       reader.onloadend = async () => {
         const imageBase64 = reader.result as string;
         setSelectedImage(imageBase64);
         
         try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (!session?.access_token) {
-            throw new Error("Authentication required. Please sign in again.");
-          }
-
           const { data, error } = await supabase.functions.invoke('scan-receipt', {
             body: { imageBase64 },
             headers: {
@@ -242,17 +261,17 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
           {step === 'upload' && (
             <div className="space-y-6 py-6">
               <div className="flex flex-col items-center justify-center border-2 border-dashed rounded-lg p-12 hover:border-primary/50 transition-colors">
-                <Upload className="h-16 w-16 text-muted-foreground mb-4" />
-                <h3 className="text-lg font-semibold mb-2">Upload Receipt Photo</h3>
+                <Camera className="h-16 w-16 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-semibold mb-2">Take Photo & Upload Receipt</h3>
                 <p className="text-sm text-muted-foreground mb-6 text-center max-w-sm">
-                  Take a clear photo of your receipt or upload an existing image
+                  Take a photo of your receipt to automatically upload and scan it
                 </p>
                 <div className="flex gap-4">
                   <label>
-                    <Button variant="default" asChild>
+                    <Button variant="default" size="lg" asChild>
                       <span>
-                        <Camera className="mr-2 h-4 w-4" />
-                        Take Photo
+                        <Camera className="mr-2 h-5 w-5" />
+                        Take Photo & Upload
                       </span>
                     </Button>
                     <Input
@@ -267,7 +286,7 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
                     <Button variant="outline" asChild>
                       <span>
                         <Upload className="mr-2 h-4 w-4" />
-                        Upload Image
+                        Choose from Gallery
                       </span>
                     </Button>
                     <Input
