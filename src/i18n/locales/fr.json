@@ -112,7 +112,9 @@
     "email": "Email",
     "signOut": "Se déconnecter",
     "devTools": "Outils développeur",
-    "testReceipt": "Tester le scanner de reçus"
+    "testReceipt": "Tester le scanner de reçus",
+    "privacyPolicy": "Politique de confidentialité",
+    "termsOfService": "Conditions d'utilisation"
   },
   "common": {
     "loading": "Chargement...",

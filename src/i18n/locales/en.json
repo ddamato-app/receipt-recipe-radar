@@ -112,7 +112,9 @@
     "email": "Email",
     "signOut": "Sign Out",
     "devTools": "Developer Tools",
-    "testReceipt": "Test Receipt Scanner"
+    "testReceipt": "Test Receipt Scanner",
+    "privacyPolicy": "Privacy Policy",
+    "termsOfService": "Terms of Service"
   },
   "common": {
     "loading": "Loading...",
