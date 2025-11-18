@@ -535,6 +535,26 @@ export default function Profile() {
           )}
 
           <Separator className="my-4" />
+          
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start" 
+            size="lg"
+            onClick={() => navigate('/privacy')}
+          >
+            Privacy Policy
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start" 
+            size="lg"
+            onClick={() => navigate('/terms')}
+          >
+            Terms of Service
+          </Button>
+
+          <Separator className="my-4" />
 
           <Button 
             variant="ghost" 

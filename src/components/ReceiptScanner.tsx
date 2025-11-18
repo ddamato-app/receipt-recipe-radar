@@ -10,6 +10,8 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, Camera, Upload, X, AlertCircle, CheckCircle2, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { Camera as CapCamera, CameraResultType, CameraSource } from '@capacitor/camera';
+import { Capacitor } from '@capacitor/core';
 
 interface ReceiptScannerProps {
   open: boolean;
@@ -38,6 +40,59 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
   const [isAdding, setIsAdding] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const { toast } = useToast();
+  
+  const isNativePlatform = Capacitor.isNativePlatform();
+
+  const takePhoto = async () => {
+    try {
+      const image = await CapCamera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Camera
+      });
+
+      if (image.dataUrl) {
+        // Convert data URL to File object
+        const response = await fetch(image.dataUrl);
+        const blob = await response.blob();
+        const file = new File([blob], 'receipt.jpg', { type: 'image/jpeg' });
+        handleImageSelect(file);
+      }
+    } catch (error) {
+      console.error('Camera error:', error);
+      toast({
+        title: "Camera Error",
+        description: "Failed to take photo. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const selectFromGallery = async () => {
+    try {
+      const image = await CapCamera.getPhoto({
+        quality: 90,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl,
+        source: CameraSource.Photos
+      });
+
+      if (image.dataUrl) {
+        const response = await fetch(image.dataUrl);
+        const blob = await response.blob();
+        const file = new File([blob], 'receipt.jpg', { type: 'image/jpeg' });
+        handleImageSelect(file);
+      }
+    } catch (error) {
+      console.error('Gallery error:', error);
+      toast({
+        title: "Gallery Error",
+        description: "Failed to select photo. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
 
   const handleImageSelect = async (file: File) => {
     try {
@@ -267,35 +322,50 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
                   Take a photo of your receipt to automatically upload and scan it
                 </p>
                 <div className="flex gap-4">
-                  <label>
-                    <Button variant="default" size="lg" asChild>
-                      <span>
+                  {isNativePlatform ? (
+                    <>
+                      <Button variant="default" size="lg" onClick={takePhoto}>
                         <Camera className="mr-2 h-5 w-5" />
-                        Take Photo & Upload
-                      </span>
-                    </Button>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      className="hidden"
-                      onChange={handleFileInput}
-                    />
-                  </label>
-                  <label>
-                    <Button variant="outline" asChild>
-                      <span>
+                        Take Photo
+                      </Button>
+                      <Button variant="outline" onClick={selectFromGallery}>
                         <Upload className="mr-2 h-4 w-4" />
                         Choose from Gallery
-                      </span>
-                    </Button>
-                    <Input
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={handleFileInput}
-                    />
-                  </label>
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <label>
+                        <Button variant="default" size="lg" asChild>
+                          <span>
+                            <Camera className="mr-2 h-5 w-5" />
+                            Take Photo & Upload
+                          </span>
+                        </Button>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          capture="environment"
+                          className="hidden"
+                          onChange={handleFileInput}
+                        />
+                      </label>
+                      <label>
+                        <Button variant="outline" asChild>
+                          <span>
+                            <Upload className="mr-2 h-4 w-4" />
+                            Choose from Gallery
+                          </span>
+                        </Button>
+                        <Input
+                          type="file"
+                          accept="image/*"
+                          className="hidden"
+                          onChange={handleFileInput}
+                        />
+                      </label>
+                    </>
+                  )}
                 </div>
               </div>
             </div>

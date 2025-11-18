@@ -27,6 +27,8 @@ import AdminFeedback from "./pages/admin/Feedback";
 import AdminSettings from "./pages/admin/Settings";
 import AdminAnalytics from "./pages/admin/Analytics";
 import TestReceipt from "./pages/TestReceipt";
+import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 
 const queryClient = new QueryClient();
 
@@ -67,6 +69,8 @@ const App = () => {
                       <Route path="/shopping-assistant-setup" element={<ShoppingAssistantSetup />} />
                       <Route path="/shopping-mode" element={<ShoppingMode />} />
                       <Route path="/test-receipt" element={<TestReceipt />} />
+                      <Route path="/privacy" element={<Privacy />} />
+                      <Route path="/terms" element={<Terms />} />
                       {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                       <Route path="*" element={<NotFound />} />
                     </Routes>
