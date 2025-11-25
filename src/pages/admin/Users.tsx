@@ -8,36 +8,14 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
-import { Search, Eye, Trash2, Download, UserPlus } from "lucide-react";
+import { Search, Eye, Trash2, Download, UserPlus, Calendar as CalendarIcon, X } from "lucide-react";
 import { toast } from "sonner";
-
-// Mock data generator
-const generateMockUsers = () => {
-  const tiers = ['Free', 'Pro'];
-  const mockUsers = [];
-  const now = Date.now();
-  
-  for (let i = 1; i <= 20; i++) {
-    const tier = Math.random() > 0.7 ? 'Pro' : 'Free';
-    const daysAgo = Math.floor(Math.random() * 365);
-    const signupDate = new Date(now - daysAgo * 24 * 60 * 60 * 1000);
-    const lastActiveDays = Math.floor(Math.random() * daysAgo);
-    const lastActive = new Date(now - lastActiveDays * 24 * 60 * 60 * 1000);
-    
-    mockUsers.push({
-      id: `user-${i}`,
-      email: `user${i}@example.com`,
-      name: Math.random() > 0.5 ? `User ${i}` : null,
-      created_at: signupDate.toISOString(),
-      tier,
-      itemCount: Math.floor(Math.random() * 51),
-      lastActive: lastActive.toISOString(),
-    });
-  }
-  
-  return mockUsers.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-};
+import { format } from "date-fns";
+import { cn } from "@/lib/utils";
 
 export default function AdminUsers() {
   const [users, setUsers] = useState<any[]>([]);
@@ -48,6 +26,8 @@ export default function AdminUsers() {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedUser, setSelectedUser] = useState<any>(null);
   const [userToDelete, setUserToDelete] = useState<any>(null);
+  const [selectedTier, setSelectedTier] = useState<string>("");
+  const [tierExpiryDate, setTierExpiryDate] = useState<Date | undefined>(undefined);
   const usersPerPage = 20;
 
   useEffect(() => {
@@ -63,13 +43,6 @@ export default function AdminUsers() {
 
       if (error) throw error;
 
-      // If no real users, use mock data
-      if (!data || data.length === 0) {
-        setUsers(generateMockUsers());
-        setLoading(false);
-        return;
-      }
-
       // Fetch item counts for each user
       const usersWithStats = await Promise.all(
         (data || []).map(async (user) => {
@@ -81,7 +54,6 @@ export default function AdminUsers() {
           return {
             ...user,
             itemCount: count || 0,
-            tier: "Free",
             lastActive: user.created_at,
           };
         })
@@ -90,7 +62,7 @@ export default function AdminUsers() {
       setUsers(usersWithStats);
     } catch (error) {
       console.error("Error fetching users:", error);
-      setUsers(generateMockUsers());
+      toast.error("Failed to load users");
     } finally {
       setLoading(false);
     }
@@ -136,13 +108,37 @@ export default function AdminUsers() {
     }
   };
 
-  const handleTierChange = async (userId: string, newTier: string) => {
+  const handleTierChange = async () => {
+    if (!selectedUser || !selectedTier) return;
+    
     try {
-      // In production, update tier in database
-      setUsers(users.map(u => u.id === userId ? { ...u, tier: newTier } : u));
-      toast.success(`User tier updated to ${newTier}`);
+      const { error } = await supabase
+        .from("profiles")
+        .update({
+          tier: selectedTier,
+          tier_expires_at: tierExpiryDate ? tierExpiryDate.toISOString() : null,
+        })
+        .eq("id", selectedUser.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setUsers(users.map(u => 
+        u.id === selectedUser.id 
+          ? { ...u, tier: selectedTier, tier_expires_at: tierExpiryDate?.toISOString() || null } 
+          : u
+      ));
+
+      const expiryText = tierExpiryDate 
+        ? ` (expires ${format(tierExpiryDate, "MMM d, yyyy")})` 
+        : " (lifetime)";
+      toast.success(`User tier updated to ${selectedTier}${expiryText}`);
+      
       setSelectedUser(null);
+      setSelectedTier("");
+      setTierExpiryDate(undefined);
     } catch (error) {
+      console.error("Error updating tier:", error);
       toast.error("Failed to update tier");
     }
   };
@@ -266,10 +262,17 @@ export default function AdminUsers() {
                   <TableCell>
                     {new Date(user.created_at).toLocaleDateString()}
                   </TableCell>
-                  <TableCell>
-                    <Badge variant={user.tier === 'Pro' ? 'default' : 'secondary'}>
-                      {user.tier}
-                    </Badge>
+                   <TableCell>
+                    <div className="flex flex-col gap-1">
+                      <Badge variant={user.tier === 'pro' ? 'default' : 'secondary'}>
+                        {user.tier}
+                      </Badge>
+                      {user.tier_expires_at && (
+                        <span className="text-xs text-muted-foreground">
+                          Expires {format(new Date(user.tier_expires_at), "MMM d, yyyy")}
+                        </span>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>{user.itemCount}</TableCell>
                   <TableCell>
@@ -332,13 +335,22 @@ export default function AdminUsers() {
         </div>
       )}
 
-      {/* View User Modal */}
-      <Dialog open={!!selectedUser} onOpenChange={() => setSelectedUser(null)}>
+      {/* View/Edit User Modal */}
+      <Dialog 
+        open={!!selectedUser} 
+        onOpenChange={(open) => {
+          if (!open) {
+            setSelectedUser(null);
+            setSelectedTier("");
+            setTierExpiryDate(undefined);
+          }
+        }}
+      >
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle>User Details</DialogTitle>
+            <DialogTitle>Manage User</DialogTitle>
             <DialogDescription>
-              View and manage user information
+              View and manage user tier and subscription
             </DialogDescription>
           </DialogHeader>
           
@@ -352,26 +364,107 @@ export default function AdminUsers() {
                   </AvatarFallback>
                 </Avatar>
                 <div>
-                  <h3 className="text-lg font-semibold">{selectedUser.name || 'No name'}</h3>
-                  <p className="text-muted-foreground">{selectedUser.email}</p>
+                  <h3 className="text-lg font-semibold">{selectedUser.name || selectedUser.email}</h3>
+                  <p className="text-muted-foreground text-sm">{selectedUser.email}</p>
                 </div>
               </div>
 
-              {/* Account Info */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-muted-foreground">Tier</p>
-                  <Badge variant={selectedUser.tier === 'Pro' ? 'default' : 'secondary'} className="mt-1">
-                    {selectedUser.tier}
-                  </Badge>
+              {/* Current Tier Info */}
+              <Card className="border-2">
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-1">Current Tier</p>
+                      <Badge variant={selectedUser.tier === 'pro' ? 'default' : 'secondary'} className="text-base">
+                        {selectedUser.tier}
+                      </Badge>
+                    </div>
+                    {selectedUser.tier_expires_at ? (
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground mb-1">Expires</p>
+                        <p className="font-medium">{format(new Date(selectedUser.tier_expires_at), "MMM d, yyyy")}</p>
+                      </div>
+                    ) : selectedUser.tier === 'pro' ? (
+                      <Badge variant="outline" className="text-sm">Lifetime</Badge>
+                    ) : null}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Tier Management */}
+              <div className="space-y-4 border rounded-lg p-4">
+                <h4 className="font-semibold">Update Tier</h4>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="tier-select">New Tier</Label>
+                  <Select value={selectedTier} onValueChange={setSelectedTier}>
+                    <SelectTrigger id="tier-select">
+                      <SelectValue placeholder="Select tier" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="free">Free</SelectItem>
+                      <SelectItem value="pro">Pro</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
+
+                {selectedTier === 'pro' && (
+                  <div className="space-y-2">
+                    <Label>Expiration Date</Label>
+                    <div className="flex gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={cn(
+                              "flex-1 justify-start text-left font-normal",
+                              !tierExpiryDate && "text-muted-foreground"
+                            )}
+                          >
+                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            {tierExpiryDate ? format(tierExpiryDate, "PPP") : "Lifetime (no expiry)"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar
+                            mode="single"
+                            selected={tierExpiryDate}
+                            onSelect={setTierExpiryDate}
+                            disabled={(date) => date < new Date()}
+                            initialFocus
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      {tierExpiryDate && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => setTierExpiryDate(undefined)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Leave empty for lifetime access
+                    </p>
+                  </div>
+                )}
+
+                <Button 
+                  onClick={handleTierChange}
+                  disabled={!selectedTier}
+                  className="w-full"
+                >
+                  Update Tier
+                </Button>
+              </div>
+
+              {/* Account Info */}
+              <div className="grid grid-cols-2 gap-4 pt-2">
                 <div>
                   <p className="text-sm text-muted-foreground">Signup Date</p>
                   <p className="font-medium">{new Date(selectedUser.created_at).toLocaleDateString()}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Last Active</p>
-                  <p className="font-medium">{new Date(selectedUser.lastActive).toLocaleDateString()}</p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Items in Fridge</p>
@@ -379,52 +472,13 @@ export default function AdminUsers() {
                 </div>
               </div>
 
-              {/* Stats Cards */}
-              <div className="grid grid-cols-3 gap-4">
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">Recipes Generated</p>
-                    <p className="text-2xl font-bold mt-1">12</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">Total Spending</p>
-                    <p className="text-2xl font-bold mt-1">$245</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-4">
-                    <p className="text-sm text-muted-foreground">Receipts</p>
-                    <p className="text-2xl font-bold mt-1">8</p>
-                  </CardContent>
-                </Card>
-              </div>
-
-              <DialogFooter className="flex-col sm:flex-row gap-2">
-                {selectedUser.tier === 'Free' ? (
-                  <Button 
-                    onClick={() => handleTierChange(selectedUser.id, 'Pro')}
-                    className="w-full sm:w-auto"
-                  >
-                    Upgrade to Pro
-                  </Button>
-                ) : (
-                  <Button 
-                    variant="outline"
-                    onClick={() => handleTierChange(selectedUser.id, 'Free')}
-                    className="w-full sm:w-auto"
-                  >
-                    Downgrade to Free
-                  </Button>
-                )}
+              <DialogFooter>
                 <Button 
                   variant="destructive"
                   onClick={() => {
                     setUserToDelete(selectedUser);
                     setSelectedUser(null);
                   }}
-                  className="w-full sm:w-auto"
                 >
                   <Trash2 className="w-4 h-4 mr-2" />
                   Delete Account
