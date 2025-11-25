@@ -211,18 +211,29 @@ function parseReceipt(ocrText: string, hints?: { vendor?: string }) {
       name = cleanName(name);
       const price_total = normMoney(price);
       
-      // Extract quantity only if explicitly shown (e.g., "2 x 12,49")
+      // Extract quantity and unit price (e.g., "3 @ 9.99" or "2 x 12,49")
       // Duplicate items on separate lines remain separate
       let qty = 1;
-      const qtyMatch = name.match(/(\d+)\s*[xX×]/);
-      if (qtyMatch) {
-        qty = parseInt(qtyMatch[1]);
+      let unit_price: number | undefined;
+      
+      // Check for "X @ Y" pattern (quantity @ unit_price)
+      const atPriceMatch = line.match(/(\d+)\s*@\s*(\d+[.,]\d{2})/);
+      if (atPriceMatch) {
+        qty = parseInt(atPriceMatch[1]);
+        unit_price = normMoney(atPriceMatch[2]);
+      } else {
+        // Check for "X x Y" pattern
+        const qtyMatch = name.match(/(\d+)\s*[xX×]/);
+        if (qtyMatch) {
+          qty = parseInt(qtyMatch[1]);
+        }
       }
       
       items.push({
         name,
         qty,
         price_total,
+        unit_price,
         needs_review: false,
       });
     }
