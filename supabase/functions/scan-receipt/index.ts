@@ -93,6 +93,12 @@ serve(async (req) => {
    - Extract the TOTAL price (the rightmost price), NOT the unit price
    - Example: "3 @ 9.99    29.97" → quantity=3, price=29.97 (NOT 9.99)
 
+8. CRITICAL: For discounts (TPD, RABAIS, COUPON):
+   - DO NOT create separate items for discounts
+   - If you see "TPD/ProductName" or similar, note it as a discount reference
+   - Return discount information separately with the product reference
+   - Negative prices (like "4,00-" or "-4.00") indicate discounts
+
 Categories to use:
 - Dairy: milk, cheese, yogurt, butter, cream, eggs
 - Fruits: all fresh fruits
@@ -111,6 +117,7 @@ ${knownProducts}
 IMPORTANT: 
 1. Use the known brands and products above to help identify items more accurately. If you see text that matches a known brand, use that exact brand name.
 2. Always extract the TOTAL price (rightmost price), not the unit price, especially when quantity > 1.
+3. DO NOT include TPD, RABAIS, or COUPON lines as items - they will be processed separately.
 
 Return ONLY valid JSON with this structure:
 {
@@ -123,7 +130,14 @@ Return ONLY valid JSON with this structure:
       "unit": "pcs|kg|g|liters|ml",
       "category": "Dairy|Fruits|Vegetables|Meat|Beverages|Snacks|Bakery|Frozen|Pantry|Household|Other",
       "estimatedDaysToExpiry": number,
-      "price": number (MUST be the total price, NOT unit price)
+      "price": number (MUST be the total price, NOT unit price),
+      "discountReference": "optional - product name if this is referenced by a discount line"
+    }
+  ],
+  "discounts": [
+    {
+      "productReference": "product name this discount applies to (from TPD/XXX pattern)",
+      "amount": number (positive number representing discount amount)
     }
   ]
 }`
@@ -231,9 +245,37 @@ Return ONLY valid JSON with this structure:
       console.log('Successfully recovered from incomplete JSON');
     }
     
+    // Apply discounts to items
+    const discounts = parsedData.discounts || [];
+    const itemsAfterDiscounts = parsedData.items.map((item: any, index: number) => {
+      let finalPrice = item.price;
+      
+      // Find matching discount by product reference
+      const matchingDiscount = discounts.find((d: any) => {
+        const ref = d.productReference?.toLowerCase() || '';
+        const itemName = item.name?.toLowerCase() || '';
+        const itemBrand = item.brand?.toLowerCase() || '';
+        return ref && (itemName.includes(ref) || ref.includes(itemName) || itemBrand.includes(ref));
+      });
+      
+      // If no reference match, check if discount is right after this item (common pattern)
+      if (!matchingDiscount && discounts.length > 0) {
+        const nextItemDiscount = discounts.find((d: any) => !d.applied);
+        if (nextItemDiscount) {
+          finalPrice = item.price - nextItemDiscount.amount;
+          nextItemDiscount.applied = true;
+        }
+      } else if (matchingDiscount) {
+        finalPrice = item.price - matchingDiscount.amount;
+        matchingDiscount.applied = true;
+      }
+      
+      return { ...item, price: Math.max(0, finalPrice) };
+    });
+    
     // Calculate expiry dates
     const today = new Date();
-    const itemsWithDates = parsedData.items.map((item: any) => {
+    const itemsWithDates = itemsAfterDiscounts.map((item: any) => {
       const expiryDate = new Date(today);
       expiryDate.setDate(today.getDate() + (item.estimatedDaysToExpiry || 7));
       
