@@ -28,6 +28,7 @@ interface ScannedItem {
   expiryDate: string;
   daysLeft: number;
   price: number;
+  unitPrice: number; // Price per unit for recalculation
   selected: boolean;
 }
 
@@ -146,11 +147,17 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
             throw new Error('No items found on receipt');
           }
 
-          const items: ScannedItem[] = data.items.map((item: any) => ({
-            ...item,
-            brand: item.brand || '',
-            selected: true
-          }));
+          const items: ScannedItem[] = data.items.map((item: any) => {
+            // Calculate unit price for later adjustments
+            const unitPrice = item.quantity > 0 ? item.price / item.quantity : item.price;
+            
+            return {
+              ...item,
+              brand: item.brand || '',
+              unitPrice,
+              selected: true
+            };
+          });
 
           setScannedItems(items);
           setStep('review');
@@ -207,9 +214,35 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
 
   const handleUpdateItem = (index: number, field: keyof ScannedItem, value: any) => {
     setScannedItems(prev =>
-      prev.map((item, i) =>
-        i === index ? { ...item, [field]: value } : item
-      )
+      prev.map((item, i) => {
+        if (i !== index) return item;
+        
+        // If quantity changes, recalculate total price based on unit price
+        if (field === 'quantity') {
+          const newQuantity = Math.max(0.1, Number(value) || 0.1);
+          const newPrice = Number((item.unitPrice * newQuantity).toFixed(2));
+          
+          return {
+            ...item,
+            quantity: newQuantity,
+            price: newPrice
+          };
+        }
+        
+        // If price changes, recalculate unit price
+        if (field === 'price') {
+          const newPrice = Math.max(0, Number(value) || 0);
+          const newUnitPrice = item.quantity > 0 ? newPrice / item.quantity : newPrice;
+          
+          return {
+            ...item,
+            price: newPrice,
+            unitPrice: newUnitPrice
+          };
+        }
+        
+        return { ...item, [field]: value };
+      })
     );
   };
 
@@ -452,13 +485,21 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
                         
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                           <div>
-                            <label className="text-xs text-muted-foreground">Quantity</label>
+                            <label className="text-xs text-muted-foreground">
+                              Quantity
+                              {item.quantity > 1 && (
+                                <span className="ml-1 text-[10px]">
+                                  (${item.unitPrice.toFixed(2)}/ea)
+                                </span>
+                              )}
+                            </label>
                             <Input
                               type="number"
                               value={item.quantity}
-                              onChange={(e) => handleUpdateItem(index, 'quantity', Number(e.target.value))}
+                              onChange={(e) => handleUpdateItem(index, 'quantity', e.target.value)}
                               min="0.1"
                               step="0.1"
+                              placeholder="Qty"
                             />
                           </div>
                           <div>
@@ -466,6 +507,7 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
                             <Input
                               value={item.unit}
                               onChange={(e) => handleUpdateItem(index, 'unit', e.target.value)}
+                              placeholder="pcs, kg, etc."
                             />
                           </div>
                           <div>
@@ -493,13 +535,21 @@ export function ReceiptScanner({ open, onOpenChange, onSuccess }: ReceiptScanner
                             </Select>
                           </div>
                           <div>
-                            <label className="text-xs text-muted-foreground">Price</label>
+                            <label className="text-xs text-muted-foreground">
+                              Total Price
+                              {item.quantity > 1 && (
+                                <span className="ml-1 text-[10px]">
+                                  ({item.quantity} × ${item.unitPrice.toFixed(2)})
+                                </span>
+                              )}
+                            </label>
                             <Input
                               type="number"
                               value={item.price}
-                              onChange={(e) => handleUpdateItem(index, 'price', Number(e.target.value))}
+                              onChange={(e) => handleUpdateItem(index, 'price', e.target.value)}
                               min="0"
                               step="0.01"
+                              placeholder="Total price"
                             />
                           </div>
                         </div>
