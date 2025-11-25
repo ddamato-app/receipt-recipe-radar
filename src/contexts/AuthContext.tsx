@@ -98,12 +98,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
+      (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          await fetchUserTier(session.user.id);
+          // Defer Supabase calls with setTimeout to avoid deadlock
+          setTimeout(() => {
+            fetchUserTier(session.user.id);
+          }, 0);
         } else {
           setTier('anonymous');
         }
