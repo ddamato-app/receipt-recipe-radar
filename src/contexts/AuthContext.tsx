@@ -76,16 +76,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       localStorage.removeItem('anonymous_recipe_count');
     }, msUntilMidnight);
 
+    // Helper function to fetch and set user tier
+    const fetchUserTier = async (userId: string) => {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('tier, tier_expires_at')
+        .eq('id', userId)
+        .single();
+      
+      if (profile) {
+        // Check if tier has expired
+        if (profile.tier_expires_at && new Date(profile.tier_expires_at) < new Date()) {
+          setTier('free');
+        } else {
+          setTier(profile.tier as UserTier);
+        }
+      } else {
+        setTier('free');
+      }
+    };
+
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
+      async (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
         
         if (session?.user) {
-          // Check user tier from profile or metadata
-          // For now, default to 'free' for logged-in users
-          setTier('free');
+          await fetchUserTier(session.user.id);
         } else {
           setTier('anonymous');
         }
@@ -93,12 +111,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       
       if (session?.user) {
-        setTier('free');
+        await fetchUserTier(session.user.id);
       }
       setIsLoading(false);
     });
