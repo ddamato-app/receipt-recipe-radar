@@ -27,9 +27,10 @@ const SKU_PATTERNS = [
 
 // Quantity patterns
 const QTY_PATTERNS = [
+  { regex: /(\d+)\s*@\s*(\d+[.,]\d{2})/, group: 1, priceGroup: 2, hasUnitPrice: true }, // 3 @ 9.99 (qty @ unit_price)
   { regex: /(\d+)\s*[xX×]/, group: 1 },                    // 2x
   { regex: /[xX×]\s*(\d+)/, group: 1 },                    // x2
-  { regex: /@\s*(\d+[.,]\d{2})/, group: 1, isPrice: true }, // @2.99 (unit price)
+  { regex: /@\s*(\d+[.,]\d{2})/, group: 1, isPrice: true }, // @2.99 (unit price only)
   { regex: /(\d+(?:[.,]\d+)?)\s*(kg|lb|g|ml|l)\b/i, group: 1, hasUnit: true }, // 1.5kg, 500g
 ];
 
@@ -358,11 +359,17 @@ function extractQuantity(line: string): {
   let unitPrice: Money | undefined;
   let explicit = false;
   
-  for (const { regex, group, isPrice, hasUnit } of QTY_PATTERNS) {
+  for (const pattern of QTY_PATTERNS) {
+    const { regex, group, isPrice, hasUnit, hasUnitPrice, priceGroup } = pattern as any;
     const match = line.match(regex);
     if (match && match[group]) {
       if (isPrice) {
         unitPrice = normMoney(match[group]);
+      } else if (hasUnitPrice && priceGroup && match[priceGroup]) {
+        // Pattern like "3 @ 9.99" - extract both qty and unit price
+        qty = parseFloat(match[group].replace(',', '.'));
+        unitPrice = normMoney(match[priceGroup]);
+        explicit = true;
       } else {
         qty = parseFloat(match[group].replace(',', '.'));
         explicit = true; // Quantity was explicitly shown
