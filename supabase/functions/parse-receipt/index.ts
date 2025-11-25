@@ -221,11 +221,19 @@ function parseReceipt(ocrText: string, hints?: { vendor?: string }) {
       if (atPriceMatch) {
         qty = parseInt(atPriceMatch[1]);
         unit_price = normMoney(atPriceMatch[2]);
+        
+        // Validate that price_total matches qty * unit_price (within 1% tolerance)
+        const expectedTotal = qty * unit_price;
+        if (Math.abs(price_total - expectedTotal) > expectedTotal * 0.01) {
+          console.log(`⚠️ Price mismatch for "${name}": ${qty} × ${unit_price} = ${expectedTotal}, but receipt shows ${price_total}`);
+          // Use the receipt's total price as the source of truth
+        }
       } else {
         // Check for "X x Y" pattern
         const qtyMatch = name.match(/(\d+)\s*[xX×]/);
         if (qtyMatch) {
           qty = parseInt(qtyMatch[1]);
+          unit_price = price_total / qty;
         }
       }
       

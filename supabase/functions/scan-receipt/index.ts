@@ -87,7 +87,11 @@ serve(async (req) => {
 4. Assign the item to the CORRECT category based on what it is
 5. Extract quantity and unit (if listed, otherwise default to 1 pcs)
 6. Estimate expiration based on the product type
-7. Extract individual item price (if visible, otherwise 0)
+7. CRITICAL: For price extraction:
+   - If you see patterns like "3 @ 9.99" or "5 x 2.49", the FIRST number is quantity, SECOND is unit price
+   - The rightmost price on the line is the TOTAL price (quantity × unit price)
+   - Extract the TOTAL price (the rightmost price), NOT the unit price
+   - Example: "3 @ 9.99    29.97" → quantity=3, price=29.97 (NOT 9.99)
 
 Categories to use:
 - Dairy: milk, cheese, yogurt, butter, cream, eggs
@@ -104,7 +108,9 @@ Categories to use:
 
 ${knownProducts}
 
-IMPORTANT: Use the known brands and products above to help identify items more accurately. If you see text that matches a known brand, use that exact brand name.
+IMPORTANT: 
+1. Use the known brands and products above to help identify items more accurately. If you see text that matches a known brand, use that exact brand name.
+2. Always extract the TOTAL price (rightmost price), not the unit price, especially when quantity > 1.
 
 Return ONLY valid JSON with this structure:
 {
@@ -117,7 +123,7 @@ Return ONLY valid JSON with this structure:
       "unit": "pcs|kg|g|liters|ml",
       "category": "Dairy|Fruits|Vegetables|Meat|Beverages|Snacks|Bakery|Frozen|Pantry|Household|Other",
       "estimatedDaysToExpiry": number,
-      "price": number
+      "price": number (MUST be the total price, NOT unit price)
     }
   ]
 }`
@@ -127,7 +133,7 @@ Return ONLY valid JSON with this structure:
             content: [
               {
                 type: "text",
-                text: "Analyze this grocery receipt. For each item: 1) Detect if French or English, 2) Identify the exact item name (not the brand), 3) Extract the brand separately, 4) Assign to the correct category, 5) Extract quantity, unit, and price. Expand abbreviations to full product names in the detected language."
+                text: "Analyze this grocery receipt. For each item: 1) Detect if French or English, 2) Identify the exact item name (not the brand), 3) Extract the brand separately, 4) Assign to the correct category, 5) Extract quantity and unit, 6) CRITICAL: Extract the TOTAL PRICE (rightmost price on each line), NOT the unit price. If you see '3 @ 9.99    29.97', extract quantity=3 and price=29.97 (the total), NOT 9.99. Expand abbreviations to full product names in the detected language."
               },
               {
                 type: "image_url",
