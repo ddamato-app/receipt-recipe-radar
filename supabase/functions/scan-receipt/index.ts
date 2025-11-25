@@ -145,7 +145,7 @@ Return ONLY valid JSON with this structure:
           }
         ],
         temperature: 0.3,
-        max_tokens: 2000
+        max_tokens: 8000
       }),
     });
 
@@ -176,7 +176,7 @@ Return ONLY valid JSON with this structure:
       throw new Error('No content in AI response');
     }
 
-    console.log('AI Response:', content);
+    console.log('AI Response length:', content.length);
 
     // Extract JSON from response (handle markdown code blocks)
     let jsonContent = content.trim();
@@ -191,7 +191,45 @@ Return ONLY valid JSON with this structure:
     }
     jsonContent = jsonContent.trim();
 
-    const parsedData = JSON.parse(jsonContent);
+    // Validate JSON completeness before parsing
+    let parsedData;
+    try {
+      parsedData = JSON.parse(jsonContent);
+    } catch (parseError) {
+      console.error('JSON parse error:', parseError);
+      console.error('Incomplete JSON content (last 200 chars):', jsonContent.slice(-200));
+      
+      // Try to fix incomplete JSON by closing it
+      let fixedJson = jsonContent;
+      
+      // Count unclosed objects and arrays
+      const openBraces = (fixedJson.match(/{/g) || []).length;
+      const closeBraces = (fixedJson.match(/}/g) || []).length;
+      const openBrackets = (fixedJson.match(/\[/g) || []).length;
+      const closeBrackets = (fixedJson.match(/]/g) || []).length;
+      
+      // Remove incomplete last item if exists
+      const lastCommaIndex = fixedJson.lastIndexOf(',');
+      if (lastCommaIndex > 0) {
+        const afterComma = fixedJson.slice(lastCommaIndex + 1).trim();
+        // If content after last comma doesn't have closing brace, remove it
+        if (!afterComma.includes('}')) {
+          fixedJson = fixedJson.slice(0, lastCommaIndex);
+        }
+      }
+      
+      // Close missing braces and brackets
+      for (let i = 0; i < openBrackets - closeBrackets; i++) {
+        fixedJson += ']';
+      }
+      for (let i = 0; i < openBraces - closeBraces; i++) {
+        fixedJson += '}';
+      }
+      
+      console.log('Attempting to fix JSON...');
+      parsedData = JSON.parse(fixedJson);
+      console.log('Successfully recovered from incomplete JSON');
+    }
     
     // Calculate expiry dates
     const today = new Date();
