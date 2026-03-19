@@ -8,6 +8,8 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { AdminProvider } from "./contexts/AdminContext";
 import { AdminRoute } from "./components/AdminRoute";
 import { AdminLayout } from "./components/AdminLayout";
+import { AgencyRoute } from "./components/AgencyRoute";
+import { AgencyLayout } from "./components/AgencyLayout";
 import Home from "./pages/Home";
 import Landing from "./pages/Landing";
 import Inventory from "./pages/Inventory";
@@ -29,6 +31,16 @@ import AdminAnalytics from "./pages/admin/Analytics";
 import TestReceipt from "./pages/TestReceipt";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
+import AgencyDashboard from "./pages/agency/Dashboard";
+import AgencyLeads from "./pages/agency/Leads";
+import AgencyLeadDetail from "./pages/agency/LeadDetail";
+import AgencyLeadForm from "./pages/agency/LeadForm";
+import AgencyScraper from "./pages/agency/Scraper";
+import AgencyCampaigns from "./pages/agency/Campaigns";
+import AgencyCampaignNew from "./pages/agency/CampaignNew";
+import AgencyCampaignDetail from "./pages/agency/CampaignDetail";
+import AgencyOutreachLogs from "./pages/agency/OutreachLogs";
+import AgencySettings from "./pages/agency/AgencySettings";
 
 const queryClient = new QueryClient();
 
@@ -42,6 +54,21 @@ const App = () => {
           <AuthProvider>
             <AdminProvider>
               <Routes>
+                {/* Agency Routes */}
+                <Route path="/agency" element={<AgencyRoute><AgencyLayout /></AgencyRoute>}>
+                  <Route index element={<AgencyDashboard />} />
+                  <Route path="leads" element={<AgencyLeads />} />
+                  <Route path="leads/new" element={<AgencyLeadForm />} />
+                  <Route path="leads/:id" element={<AgencyLeadDetail />} />
+                  <Route path="leads/:id/edit" element={<AgencyLeadForm />} />
+                  <Route path="scraper" element={<AgencyScraper />} />
+                  <Route path="campaigns" element={<AgencyCampaigns />} />
+                  <Route path="campaigns/new" element={<AgencyCampaignNew />} />
+                  <Route path="campaigns/:id" element={<AgencyCampaignDetail />} />
+                  <Route path="outreach" element={<AgencyOutreachLogs />} />
+                  <Route path="settings" element={<AgencySettings />} />
+                </Route>
+
                 {/* Admin Routes */}
                 <Route path="/admin" element={<AdminRoute><AdminLayout /></AdminRoute>}>
                   <Route index element={<AdminDashboard />} />
