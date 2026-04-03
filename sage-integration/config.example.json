@@ -1,0 +1,41 @@
+{
+  "service": {
+    "name": "Sage300PosIntegration",
+    "displayName": "SAGE 300 POS Integration Service",
+    "description": "Bridges SAGE 300 POS with the custom platform for invoices, payments, and contracts",
+    "port": 4000,
+    "apiKey": "CHANGE_ME_TO_A_LONG_RANDOM_SECRET"
+  },
+  "sage": {
+    "adapter": "webapi",
+    "webapi": {
+      "baseUrl": "http://localhost/Sage300WebApi/v1.0/-/COMPANY_ID",
+      "username": "ADMIN",
+      "password": "YOUR_SAGE_PASSWORD",
+      "companyId": "SAMLTD"
+    },
+    "sqlserver": {
+      "server": "localhost\\SAGE300",
+      "database": "SAMLTD",
+      "user": "sa",
+      "password": "YOUR_SQL_PASSWORD",
+      "options": {
+        "encrypt": false,
+        "trustServerCertificate": true
+      }
+    },
+    "odbc": {
+      "connectionString": "Driver={SQL Server};Server=localhost;Database=SAMLTD;Uid=sa;Pwd=YOUR_PASSWORD;"
+    }
+  },
+  "sync": {
+    "enabled": true,
+    "cronSchedule": "*/15 * * * *",
+    "supabaseUrl": "https://YOUR_PROJECT.supabase.co",
+    "supabaseServiceKey": "YOUR_SERVICE_ROLE_KEY"
+  },
+  "logging": {
+    "level": "info",
+    "dir": "C:\\ProgramData\\Sage300Integration\\logs"
+  }
+}
