@@ -55,14 +55,14 @@ Expected response:
 
 ### Option A – SAGE 300 Web API (Recommended)
 
-Requires the **SAGE 300 Web API** module to be installed.
+Requires the **SAGE 300 Web API** module to be installed alongside SAGE 300.
 
 ```json
 "sage": {
   "adapter": "webapi",
   "webapi": {
     "baseUrl": "http://localhost/Sage300WebApi/v1.0/-/SAMLTD",
-    "username": "ADMIN",
+    "username": "WEBAPI",
     "password": "your_sage_password",
     "companyId": "SAMLTD"
   }
@@ -70,6 +70,10 @@ Requires the **SAGE 300 Web API** module to be installed.
 ```
 
 Replace `SAMLTD` with your SAGE company ID.
+
+> **Important:** The SAGE 300 Web API requires a dedicated user account with Web API security group access. The `ADMIN` user does **not** have Web API privileges by default — you must create a separate `WEBAPI` user (or enable Web API on an existing user) in SAGE 300 User Management.
+
+> **Swagger UI:** Once the Web API is installed, you can browse all available endpoints at `http://<server>/Sage300WebApi/` — this shows every module, field name, and lets you test calls interactively.
 
 ### Option B – SQL Server Direct
 
